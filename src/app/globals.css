@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Smooth scrolling and sensible defaults */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-gray-950 text-gray-100 antialiased;
+}
+
+/* Star rating — filled vs unfilled */
+.star-filled {
+  @apply text-yellow-400;
+}
+
+.star-empty {
+  @apply text-gray-600;
+}
