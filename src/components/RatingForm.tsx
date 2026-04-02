@@ -6,7 +6,9 @@ interface Props {
   sessionId: string
   isEligible: boolean
   accumulatedMs: number
-  vibe: string  // Required — only rendered after vibe question is answered
+  vibe: string
+  resetsCount: number       // Behavioral: how many interruptions occurred
+  timeToVibeMs: number | null  // Behavioral: ms between eligibility and vibe selection
   onSuccess: (newCredits: number) => void
 }
 
@@ -19,6 +21,8 @@ export default function RatingForm({
   isEligible,
   accumulatedMs,
   vibe,
+  resetsCount,
+  timeToVibeMs,
   onSuccess,
 }: Props) {
   const [hoveredStar, setHoveredStar] = useState(0)
@@ -44,6 +48,8 @@ export default function RatingForm({
           score: selectedStar,
           activeListenTimeMs: accumulatedMs,
           vibe,
+          resetsCount,
+          timeToVibeMs,
         }),
       })
 

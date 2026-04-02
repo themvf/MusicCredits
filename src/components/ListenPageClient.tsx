@@ -8,7 +8,7 @@ import FrictionQuestion from '@/components/FrictionQuestion'
 import RatingForm from '@/components/RatingForm'
 import { useListeningSession } from '@/hooks/useListeningSession'
 
-// A jump of more than 4 seconds in a single position update = forward seek
+// A position jump > 4s in a single postMessage update = forward seek
 const SEEK_THRESHOLD_SECONDS = 4
 
 interface Props {
@@ -19,51 +19,66 @@ interface Props {
 /**
  * Orchestrates the full anti-gaming listening flow:
  *
- *   1. LISTENING  — timer only runs while Spotify is playing + tab visible
- *   2. INTERRUPTED — pause, tab switch, or forward seek → timer resets to 0
- *   3. ELIGIBLE   — 30 continuous seconds reached → vibe question appears
- *   4. VIBE ANSWERED — user selects a vibe tag → rating form unlocks
- *   5. RATED      — credits awarded, redirect to dashboard
+ *   LISTENING  → timer counts only while Spotify is playing + tab visible
+ *   RESET      → any pause / tab switch / forward seek → timer back to 0
+ *   ELIGIBLE   → 30 continuous seconds → vibe question appears
+ *   VIBE       → user picks a vibe → micro-reward flash → rating unlocks
+ *   RATED      → credits awarded → redirect to dashboard
  *
- * Seek detection: we compare successive `position` values from Spotify's
- * postMessage events. A jump > 4s = forward seek = timer reset.
+ * Behavioral data collected and sent to backend:
+ *   resetsCount   — how many interruptions occurred
+ *   timeToVibeMs  — how long user took to answer vibe question after eligibility
  */
 export default function ListenPageClient({ trackId, sessionId }: Props) {
   const router = useRouter()
 
-  // Real playback state from Spotify postMessage
   const [isPlaying, setIsPlaying] = useState(false)
-
-  // Track Spotify position to detect forward seeks
   const prevPositionRef = useRef<number | null>(null)
 
-  // Vibe answer — null until friction question is answered
+  // Vibe state
   const [selectedVibe, setSelectedVibe] = useState<string | null>(null)
+  const [showVibeReward, setShowVibeReward] = useState(false)
+  const eligibleAtRef = useRef<number | null>(null)   // Timestamp when 30s was first hit
+  const [timeToVibeMs, setTimeToVibeMs] = useState<number | null>(null)
 
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [spotifyTrackId, setSpotifyTrackId] = useState<string | null>(null)
   const [earnedCredit, setEarnedCredit] = useState(false)
   const [newCredits, setNewCredits] = useState<number | null>(null)
 
-  // Timer resets to 0 on any interruption (pause, tab switch, seek)
-  const { displayMs, isEligible, reset } = useListeningSession(isPlaying)
+  const { displayMs, isEligible, resetsCount, reset } = useListeningSession(isPlaying)
 
-  // When timer resets (eligible → not eligible), also clear vibe answer
+  // Record timestamp when eligibility is first reached (for timeToVibeMs)
   useEffect(() => {
-    if (!isEligible && selectedVibe !== null) {
-      setSelectedVibe(null)
+    if (isEligible && eligibleAtRef.current === null) {
+      eligibleAtRef.current = Date.now()
     }
-  }, [isEligible, selectedVibe])
+    // Reset eligibility clock if timer resets
+    if (!isEligible) {
+      eligibleAtRef.current = null
+      setSelectedVibe(null)
+      setShowVibeReward(false)
+      setTimeToVibeMs(null)
+    }
+  }, [isEligible])
 
-  // Stable callback so SpotifyEmbed's message listener doesn't re-register
+  function handleVibeSelect(vibe: string) {
+    // Compute how long it took to answer the vibe question
+    const elapsed = eligibleAtRef.current ? Date.now() - eligibleAtRef.current : null
+    setTimeToVibeMs(elapsed)
+    setSelectedVibe(vibe)
+    // Briefly show the micro-reward before the rating form slides in
+    setShowVibeReward(true)
+    setTimeout(() => setShowVibeReward(false), 1500)
+  }
+
+  // Seek detection — compare successive position values from Spotify postMessage
   const handlePlaybackUpdate = useCallback(
     ({ isPlaying: playing, position }: { isPlaying: boolean; position: number }) => {
       setIsPlaying(playing)
 
-      // Seek detection: only check while audio is playing
       if (playing && prevPositionRef.current !== null) {
         const delta = position - prevPositionRef.current
-        // Forward jump larger than threshold = user seeked ahead → reset timer
         if (delta > SEEK_THRESHOLD_SECONDS) {
           reset()
         }
@@ -73,7 +88,6 @@ export default function ListenPageClient({ trackId, sessionId }: Props) {
     [reset]
   )
 
-  // Fetch the track's spotifyUrl to extract the track ID for the embed
   useEffect(() => {
     async function loadTrack() {
       try {
@@ -139,39 +153,40 @@ export default function ListenPageClient({ trackId, sessionId }: Props) {
         </p>
       </div>
 
-      {/* Spotify embed — fires postMessage playback events */}
-      <SpotifyEmbed
-        trackId={spotifyTrackId}
-        onPlaybackUpdate={handlePlaybackUpdate}
-      />
+      <SpotifyEmbed trackId={spotifyTrackId} onPlaybackUpdate={handlePlaybackUpdate} />
 
-      {/* Live timer — resets on any interruption */}
-      <ListeningTimer
-        isPlaying={isPlaying}
-        displayMs={displayMs}
-        isEligible={isEligible}
-      />
+      <ListeningTimer isPlaying={isPlaying} displayMs={displayMs} isEligible={isEligible} />
 
-      {/* Layer 3: Friction question — appears after 30s, before rating */}
-      {isEligible && !selectedVibe && (
-        <FrictionQuestion onSelect={setSelectedVibe} />
+      {/* Step 1: Vibe question — appears after 30s */}
+      {isEligible && !selectedVibe && !showVibeReward && (
+        <FrictionQuestion onSelect={handleVibeSelect} />
       )}
 
-      {/* Rating form — only unlocks after vibe answered */}
-      {isEligible && selectedVibe && (
+      {/* Step 2: Micro-reward flash — appears briefly after vibe is selected */}
+      {showVibeReward && (
+        <div className="bg-green-950 border border-green-700 rounded-xl p-5 text-center animate-pulse">
+          <p className="text-green-400 font-semibold text-lg">🎧 Nice — rating unlocked!</p>
+          <p className="text-green-600 text-sm mt-1">You&apos;ve verified your listen. Now rate the track.</p>
+        </div>
+      )}
+
+      {/* Step 3: Rating form — appears after vibe answered and micro-reward fades */}
+      {isEligible && selectedVibe && !showVibeReward && (
         <RatingForm
           sessionId={sessionId}
           isEligible={isEligible}
           accumulatedMs={displayMs}
           vibe={selectedVibe}
+          resetsCount={resetsCount}
+          timeToVibeMs={timeToVibeMs}
           onSuccess={handleRatingSuccess}
         />
       )}
 
-      {/* Rating locked state — shown before eligibility */}
+      {/* Locked state — before eligibility */}
       {!isEligible && (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 opacity-50">
-          <h3 className="text-gray-400 font-semibold mb-4">Rating locked — keep listening</h3>
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 opacity-50 pointer-events-none">
+          <h3 className="text-gray-500 font-semibold mb-4">Rating locked — keep listening</h3>
           <div className="flex gap-2 justify-center">
             {[1,2,3,4,5].map(s => (
               <span key={s} className="text-4xl text-gray-700">★</span>

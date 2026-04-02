@@ -3,7 +3,6 @@ import { z } from 'zod'
 import { getAuthenticatedUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-// Strict schema — all fields required, ranges enforced
 const VALID_VIBES = ['energetic', 'chill', 'emotional', 'hype', 'unique'] as const
 
 const rateSchema = z.object({
@@ -18,8 +17,10 @@ const rateSchema = z.object({
     .int('activeListenTimeMs must be an integer')
     .min(0)
     .max(600_000, 'activeListenTimeMs cannot exceed 10 minutes'),
-  // Optional vibe tag from the friction question — validated against known values
   vibe: z.enum(VALID_VIBES).optional(),
+  // Behavioral fields — written to ListenEvent for analytics + trust scoring
+  resetsCount: z.number().int().min(0).max(1000).default(0),
+  timeToVibeMs: z.number().int().min(0).max(600_000).nullable().default(null),
 })
 
 /**
@@ -29,13 +30,14 @@ const rateSchema = z.object({
  * All validation is enforced server-side — the client timer is a UX hint only.
  *
  * Security layers applied (in order):
- *  1. Authentication  — user must be signed in
- *  2. Input validation — Zod schema with strict types and ranges
- *  3. Ownership check — session must belong to the authenticated user
- *  4. Idempotency check — session must not already be completed
- *  5. Duplicate rating — no existing Rating row for this session
- *  6. Listen time check — activeListenTimeMs >= 32000 (server-side threshold)
- *  7. Atomic write — $transaction prevents partial state
+ *  1. Authentication       — user must be signed in
+ *  2. Input validation     — Zod schema with strict types and ranges
+ *  3. Ownership check      — session must belong to the authenticated user
+ *  4. Idempotency check    — session must not already be completed
+ *  5. Duplicate rating     — no existing Rating row for this session
+ *  6. Abandoned check      — session must not have been abandoned (activeListenTimeMs = -1)
+ *  7. Listen time check    — activeListenTimeMs >= 32000 (server-side threshold)
+ *  8. Atomic write         — $transaction prevents partial state
  */
 export async function POST(req: NextRequest) {
   try {
@@ -53,9 +55,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { sessionId, score, activeListenTimeMs, vibe } = parsed.data
+    const { sessionId, score, activeListenTimeMs, vibe, resetsCount, timeToVibeMs } = parsed.data
 
-    // Fetch the session with its existing rating (if any)
     const session = await prisma.listeningSession.findUnique({
       where: { id: sessionId },
       include: { rating: true },
@@ -89,9 +90,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // LAYER 6: Server-side listen time enforcement.
-    // We use 32000ms (32s) to give a small buffer for network latency/rounding,
-    // while still exceeding the stated 30-second requirement.
+    // LAYER 6: Abandoned session check.
+    // activeListenTimeMs = -1 is our sentinel for sessions abandoned by the
+    // single-session lock. User cannot earn credits from an abandoned session.
+    if (session.activeListenTimeMs === -1) {
+      return NextResponse.json(
+        { error: 'This session was abandoned when you started listening to another track' },
+        { status: 409 }
+      )
+    }
+
+    // LAYER 7: Server-side listen time enforcement.
+    // 32000ms gives a 2s buffer for network latency while exceeding the 30s requirement.
     const MINIMUM_LISTEN_MS = 32_000
     if (activeListenTimeMs < MINIMUM_LISTEN_MS) {
       return NextResponse.json(
@@ -100,23 +110,31 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // LAYER 7: Atomic $transaction — all three writes succeed or all fail.
-    //   a) Mark session complete and record the reported listen time
-    //   b) Create the Rating record
-    //   c) Credit the user +1
-    const [, , updatedUser] = await prisma.$transaction([
+    // LAYER 8: Atomic $transaction — all writes succeed or all fail.
+    //   a) Mark session complete
+    //   b) Create Rating (DB unique constraint prevents double-award)
+    //   c) Create ListenEvent (behavioral log for analytics + trust scoring)
+    //   d) Award +1 credit
+    const [, , , updatedUser] = await prisma.$transaction([
       prisma.listeningSession.update({
         where: { id: sessionId },
-        data: {
-          completed: true,
-          activeListenTimeMs,
-        },
+        data: { completed: true, activeListenTimeMs },
       }),
       prisma.rating.create({
         data: {
           sessionId,
           score,
           ...(vibe ? { vibe } : {}),
+        },
+      }),
+      // Behavioral log — enables trust scoring and anti-gaming detection
+      prisma.listenEvent.create({
+        data: {
+          sessionId,
+          userId: user.id,
+          resetsCount,
+          listenDurationMs: activeListenTimeMs,
+          timeToVibeMs,
         },
       }),
       prisma.user.update({

@@ -9,11 +9,14 @@ datasource db {
 }
 
 model User {
-  id       String @id @default(cuid())
-  clerkId  String @unique
-  credits  Int    @default(10)
-  tracks   Track[]
-  sessions ListeningSession[]
+  id         String  @id @default(cuid())
+  clerkId    String  @unique
+  credits    Int     @default(10)
+  // Reputation foundation — updated after each completed session
+  trustScore Float   @default(1.0)
+  tracks     Track[]
+  sessions   ListeningSession[]
+  listenEvents ListenEvent[]
 }
 
 model Track {
@@ -36,10 +39,28 @@ model ListeningSession {
   user               User     @relation(fields: [userId], references: [id])
   // Cascade: deleting a track removes its sessions
   track              Track    @relation("TrackSessions", fields: [trackId], references: [id], onDelete: Cascade)
-  // Cascade: deleting a session removes its rating
+  // Cascade: deleting a session removes its rating and listen event
   rating             Rating?
+  listenEvent        ListenEvent?
 
   @@unique([userId, trackId])
+}
+
+// Behavioral log — one record per session, written atomically with rating
+// Powers anti-gaming detection and future reputation scoring
+model ListenEvent {
+  id               String    @id @default(cuid())
+  sessionId        String    @unique
+  userId           String
+  resetsCount      Int       @default(0)  // How many times the timer reset (pauses + seeks + tab switches)
+  listenDurationMs Int       @default(0)  // Final timer value at submission
+  timeToVibeMs     Int?                   // ms between eligibility and vibe selection (null = didn't use vibe)
+  createdAt        DateTime  @default(now())
+  // Cascade with session
+  session          ListeningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user             User             @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model Rating {
