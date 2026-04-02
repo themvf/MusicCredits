@@ -37,13 +37,10 @@ export default function ListenPageClient({ trackId, sessionId }: Props) {
   // Timer driven by real playback state — not wall-clock time
   const { displayMs, isEligible } = useListeningSession(isPlaying)
 
-  // Stable callback reference for SpotifyEmbed to avoid re-mounting the embed
-  const handlePlaybackUpdate = useCallback(
-    ({ isPaused }: { isPaused: boolean; position: number; duration: number }) => {
-      setIsPlaying(!isPaused)
-    },
-    []
-  )
+  // Stable callback so SpotifyEmbed's effect doesn't re-run on every render
+  const handlePlayStateChange = useCallback((playing: boolean) => {
+    setIsPlaying(playing)
+  }, [])
 
   // Fetch the track's spotifyUrl to extract the Spotify track ID for the embed
   useEffect(() => {
@@ -121,10 +118,10 @@ export default function ListenPageClient({ trackId, sessionId }: Props) {
         </p>
       </div>
 
-      {/* Spotify embed — fires real playback events via IFrame API */}
+      {/* Spotify embed — listens for postMessage playback events */}
       <SpotifyEmbed
         trackId={spotifyTrackId}
-        onPlaybackUpdate={handlePlaybackUpdate}
+        onPlayStateChange={handlePlayStateChange}
       />
 
       {/* Timer reflects actual playback state */}
