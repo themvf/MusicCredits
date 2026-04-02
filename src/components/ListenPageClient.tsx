@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import SpotifyEmbed from '@/components/SpotifyEmbed'
 import ListeningTimer from '@/components/ListeningTimer'
@@ -8,31 +8,44 @@ import RatingForm from '@/components/RatingForm'
 import { useListeningSession } from '@/hooks/useListeningSession'
 
 interface Props {
-  /** The DB Track.id (cuid) */
   trackId: string
-  /** The DB ListeningSession.id (cuid) */
   sessionId: string
 }
 
 /**
- * Orchestrates the full listening experience:
- * - Renders the Spotify embed using the Track.spotifyUrl fetched from the API
- * - Runs the visibility-aware timer via useListeningSession
- * - Shows the locked RatingForm that unlocks at 30s
- * - Handles the success state and redirect to /dashboard
+ * Orchestrates the full listening experience.
+ *
+ * Playback state flow:
+ *   SpotifyEmbed → onPlaybackUpdate → isPlaying state
+ *   isPlaying → useListeningSession → displayMs / isEligible
+ *   displayMs / isEligible → ListeningTimer + RatingForm
+ *
+ * Time only accumulates when the Spotify IFrame API reports isPaused=false
+ * AND the tab is visible. Pausing or switching tabs both stop the timer.
  */
 export default function ListenPageClient({ trackId, sessionId }: Props) {
   const router = useRouter()
-  const { started, startTimer, accumulatedMs, displayMs, isEligible } = useListeningSession()
 
-  // We fetch the track's spotifyUrl so we can extract the Spotify track ID for the embed
-  const [spotifyTrackId, setSpotifyTrackId] = useState<string | null>(null)
+  // Real playback state from the Spotify IFrame API
+  const [isPlaying, setIsPlaying] = useState(false)
+
   const [fetchError, setFetchError] = useState<string | null>(null)
-
-  // Credit success state
+  const [spotifyTrackId, setSpotifyTrackId] = useState<string | null>(null)
   const [earnedCredit, setEarnedCredit] = useState(false)
   const [newCredits, setNewCredits] = useState<number | null>(null)
 
+  // Timer driven by real playback state — not wall-clock time
+  const { displayMs, isEligible } = useListeningSession(isPlaying)
+
+  // Stable callback reference for SpotifyEmbed to avoid re-mounting the embed
+  const handlePlaybackUpdate = useCallback(
+    ({ isPaused }: { isPaused: boolean; position: number; duration: number }) => {
+      setIsPlaying(!isPaused)
+    },
+    []
+  )
+
+  // Fetch the track's spotifyUrl to extract the Spotify track ID for the embed
   useEffect(() => {
     async function loadTrack() {
       try {
@@ -42,7 +55,6 @@ export default function ListenPageClient({ trackId, sessionId }: Props) {
           return
         }
         const data = await res.json()
-        // Extract the 22-char Spotify ID from the stored URL
         const match = data.spotifyUrl?.match(
           /https:\/\/open\.spotify\.com\/track\/([A-Za-z0-9]{22})/
         )
@@ -61,14 +73,12 @@ export default function ListenPageClient({ trackId, sessionId }: Props) {
   function handleRatingSuccess(credits: number) {
     setEarnedCredit(true)
     setNewCredits(credits)
-    // Redirect to dashboard after 2 seconds
     setTimeout(() => {
       router.push('/dashboard')
       router.refresh()
     }, 2000)
   }
 
-  // Success screen
   if (earnedCredit) {
     return (
       <div className="max-w-lg mx-auto flex flex-col items-center justify-center py-20 text-center">
@@ -97,7 +107,6 @@ export default function ListenPageClient({ trackId, sessionId }: Props) {
   if (!spotifyTrackId) {
     return (
       <div className="max-w-lg mx-auto text-center py-20">
-        <div className="animate-spin text-4xl mb-4">⟳</div>
         <p className="text-gray-400">Loading track...</p>
       </div>
     )
@@ -108,32 +117,30 @@ export default function ListenPageClient({ trackId, sessionId }: Props) {
       <div>
         <h1 className="text-2xl font-bold text-white mb-1">Listen & Rate</h1>
         <p className="text-gray-400 text-sm">
-          Keep this tab open and listen for 30 seconds, then rate the track to earn +1 credit.
+          Play the track and listen for 30 seconds to earn +1 credit. The timer only runs while audio is playing.
         </p>
       </div>
 
-      {/* Spotify embed player */}
-      <SpotifyEmbed trackId={spotifyTrackId} />
-
-      {/* Visibility-aware timer — only starts after user confirms they pressed play */}
-      <ListeningTimer
-        started={started}
-        displayMs={displayMs}
-        isEligible={isEligible}
-        onStart={startTimer}
+      {/* Spotify embed — fires real playback events via IFrame API */}
+      <SpotifyEmbed
+        trackId={spotifyTrackId}
+        onPlaybackUpdate={handlePlaybackUpdate}
       />
 
-      {/* Rating form — locked until 30s threshold */}
+      {/* Timer reflects actual playback state */}
+      <ListeningTimer
+        isPlaying={isPlaying}
+        displayMs={displayMs}
+        isEligible={isEligible}
+      />
+
+      {/* Rating form — locked until genuine 30s of audio consumed */}
       <RatingForm
         sessionId={sessionId}
         isEligible={isEligible}
         accumulatedMs={displayMs}
         onSuccess={handleRatingSuccess}
       />
-
-      <p className="text-center text-xs text-gray-600">
-        Session ID: {sessionId}
-      </p>
     </div>
   )
 }
