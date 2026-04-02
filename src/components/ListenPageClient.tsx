@@ -23,7 +23,7 @@ interface Props {
  */
 export default function ListenPageClient({ trackId, sessionId }: Props) {
   const router = useRouter()
-  const { accumulatedMs, displayMs, isEligible } = useListeningSession()
+  const { started, startTimer, accumulatedMs, displayMs, isEligible } = useListeningSession()
 
   // We fetch the track's spotifyUrl so we can extract the Spotify track ID for the embed
   const [spotifyTrackId, setSpotifyTrackId] = useState<string | null>(null)
@@ -115,8 +115,13 @@ export default function ListenPageClient({ trackId, sessionId }: Props) {
       {/* Spotify embed player */}
       <SpotifyEmbed trackId={spotifyTrackId} />
 
-      {/* Visibility-aware timer */}
-      <ListeningTimer displayMs={displayMs} isEligible={isEligible} />
+      {/* Visibility-aware timer — only starts after user confirms they pressed play */}
+      <ListeningTimer
+        started={started}
+        displayMs={displayMs}
+        isEligible={isEligible}
+        onStart={startTimer}
+      />
 
       {/* Rating form — locked until 30s threshold */}
       <RatingForm

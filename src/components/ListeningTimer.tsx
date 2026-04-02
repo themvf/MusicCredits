@@ -1,20 +1,41 @@
 'use client'
 
 interface Props {
+  started: boolean
   displayMs: number
   isEligible: boolean
+  onStart: () => void
 }
 
 const REQUIRED_MS = 30_000
 
 /**
  * Displays a progress bar and elapsed / required time.
- * Parent passes displayMs from the useListeningSession hook.
+ *
+ * Before the user starts: shows a "I'm playing — start timer" button.
+ * After starting: shows the live countdown progress.
  */
-export default function ListeningTimer({ displayMs, isEligible }: Props) {
+export default function ListeningTimer({ started, displayMs, isEligible, onStart }: Props) {
   const seconds = Math.floor(displayMs / 1000)
   const cappedSeconds = Math.min(seconds, 30)
   const progressPct = Math.min((displayMs / REQUIRED_MS) * 100, 100)
+
+  // Pre-start state: prompt the user to press play first
+  if (!started) {
+    return (
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 flex flex-col gap-3">
+        <p className="text-sm text-gray-400">
+          Press <span className="text-white font-semibold">play</span> in the player above, then click the button below to start your 30-second timer.
+        </p>
+        <button
+          onClick={onStart}
+          className="w-full py-2.5 bg-green-500 hover:bg-green-400 text-black font-semibold text-sm rounded-xl transition-colors"
+        >
+          I&apos;m playing — start timer
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
@@ -29,7 +50,6 @@ export default function ListeningTimer({ displayMs, isEligible }: Props) {
         )}
       </div>
 
-      {/* Progress bar */}
       <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-500 ${
