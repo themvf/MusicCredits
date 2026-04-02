@@ -5,12 +5,12 @@ import ListenPageClient from '@/components/ListenPageClient'
  * Server wrapper — search params must be passed down to a client component
  * because the actual player logic uses browser APIs (Page Visibility, timers).
  */
-export default function ListenPage({
+export default async function ListenPage({
   searchParams,
 }: {
-  searchParams: { trackId?: string; sessionId?: string }
+  searchParams: Promise<{ trackId?: string; sessionId?: string }>
 }) {
-  const { trackId, sessionId } = searchParams
+  const { trackId, sessionId } = await searchParams
 
   if (!trackId || !sessionId) {
     return (

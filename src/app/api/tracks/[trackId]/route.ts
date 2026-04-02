@@ -10,13 +10,15 @@ import { prisma } from '@/lib/prisma'
  */
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { trackId: string } }
+  { params }: { params: Promise<{ trackId: string }> }
 ) {
   try {
     await getAuthenticatedUser()
 
+    const { trackId } = await params
+
     const track = await prisma.track.findUnique({
-      where: { id: params.trackId },
+      where: { id: trackId },
     })
 
     if (!track) {

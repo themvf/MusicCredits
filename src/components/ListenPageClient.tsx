@@ -122,7 +122,7 @@ export default function ListenPageClient({ trackId, sessionId }: Props) {
       <RatingForm
         sessionId={sessionId}
         isEligible={isEligible}
-        accumulatedMs={accumulatedMs}
+        accumulatedMs={displayMs}
         onSuccess={handleRatingSuccess}
       />
 
