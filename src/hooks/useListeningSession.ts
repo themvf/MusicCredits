@@ -1,93 +1,86 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 
 interface UseListeningSessionResult {
   displayMs: number
   isEligible: boolean
+  reset: () => void  // Call on forward seek to restart the counter
 }
 
 /**
- * Accumulates active listening time, driven by two signals:
- *   1. isPlaying  — audio is actually playing (from Spotify IFrame API)
- *   2. tab visible — Page Visibility API (tab must stay in foreground)
+ * Accumulates CONTINUOUS active listening time.
  *
- * Time ONLY accumulates when BOTH conditions are true.
- * This means pausing, switching tabs, or navigating away all pause the timer.
+ * The counter RESETS to zero on any interruption:
+ *   - Audio paused (isPlaying → false)
+ *   - Tab hidden (Page Visibility API)
+ *   - External reset() call (forward seek detected by parent)
  *
- * The hook re-runs its effect whenever isPlaying changes, which:
- *   - On pause: snapshots elapsed time into accumulatedRef
- *   - On play:  records a new tracking start timestamp
+ * This means the user must listen to 30 UNINTERRUPTED seconds.
+ * Pausing, switching tabs, or seeking forward all restart the clock.
+ *
+ * Time only accumulates when isPlaying=true AND tab is visible.
  */
 export function useListeningSession(isPlaying: boolean): UseListeningSessionResult {
   const [displayMs, setDisplayMs] = useState(0)
 
-  // Frozen sum of all completed play intervals
-  const accumulatedRef = useRef(0)
-  // Timestamp when the current play interval started (null = not tracking)
+  // Timestamp when the current uninterrupted listen interval started
   const trackingStartRef = useRef<number | null>(null)
 
+  // reset() is exposed so ListenPageClient can call it on seek detection
+  const reset = useCallback(() => {
+    trackingStartRef.current = null
+    setDisplayMs(0)
+    // If currently playing and tab is visible, immediately restart from now
+    if (!document.hidden) {
+      trackingStartRef.current = Date.now()
+    }
+  }, [])
+
   useEffect(() => {
-    // Snapshot: add elapsed time from the current interval into accumulated,
-    // then clear the tracking start so we stop accumulating.
-    function snapshot() {
-      if (trackingStartRef.current !== null) {
-        accumulatedRef.current += Date.now() - trackingStartRef.current
-        trackingStartRef.current = null
-      }
+    if (!isPlaying) {
+      // Audio paused — reset all progress. User must listen continuously.
+      trackingStartRef.current = null
+      setDisplayMs(0)
+      return
     }
 
-    // Begin a new tracking interval if not already tracking
-    function beginTracking() {
-      if (trackingStartRef.current === null) {
-        trackingStartRef.current = Date.now()
-      }
+    // Audio is playing — start tracking if tab is visible
+    if (!document.hidden) {
+      trackingStartRef.current = Date.now()
     }
 
-    // Combine both signals: only track when playing AND tab is visible
-    const shouldTrack = isPlaying && !document.hidden
-
-    if (shouldTrack) {
-      beginTracking()
-    } else {
-      // Either paused or tab hidden — snapshot any in-progress interval
-      snapshot()
-    }
-
-    // Visibility change handler: pause/resume tracking based on tab state
     function handleVisibilityChange() {
       if (document.hidden) {
-        // Tab went to background — stop accumulating
-        snapshot()
-      } else if (isPlaying) {
-        // Tab came back to foreground and audio is still playing — resume
-        beginTracking()
+        // Tab hidden while playing — reset progress
+        trackingStartRef.current = null
+        setDisplayMs(0)
+      } else {
+        // Tab came back while still playing — restart from now
+        trackingStartRef.current = Date.now()
       }
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
-    // Tick every 500ms to update the live display value
+    // Tick every 500ms to update the live display
     const intervalId = setInterval(() => {
-      const inProgress =
-        trackingStartRef.current !== null
-          ? Date.now() - trackingStartRef.current
-          : 0
-      setDisplayMs(accumulatedRef.current + inProgress)
+      if (trackingStartRef.current !== null) {
+        setDisplayMs(Date.now() - trackingStartRef.current)
+      }
     }, 500)
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       clearInterval(intervalId)
-      // Snapshot on cleanup so accumulated is up to date for the next effect run
-      snapshot()
+      // Reset on cleanup (isPlaying changed — effect re-runs)
+      trackingStartRef.current = null
     }
-  }, [isPlaying]) // Re-run whenever playback state changes
+  }, [isPlaying])
 
   return {
-    // Use displayMs for submission — it includes the live in-progress interval.
-    // accumulatedRef.current alone would be 0 if the user never paused.
     displayMs,
     isEligible: displayMs >= 30_000,
+    reset,
   }
 }

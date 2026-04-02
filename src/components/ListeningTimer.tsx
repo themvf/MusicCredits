@@ -9,12 +9,16 @@ interface Props {
 const REQUIRED_MS = 30_000
 
 /**
- * Displays playback state and listening progress.
+ * Displays real-time listening progress.
  *
- * Three visual states:
- *   1. Not yet playing   — prompt to press play
- *   2. Playing/paused    — live progress bar
- *   3. Eligible          — ready to rate
+ * Key behavior: the progress bar resets to 0 on pause, tab switch, or seek.
+ * This visually reinforces that 30 CONTINUOUS seconds are required.
+ *
+ * States:
+ *   - Not yet playing:   prompt to press play
+ *   - Playing:           live green progress bar
+ *   - Paused mid-listen: yellow bar, "Paused — progress reset" warning
+ *   - Eligible:          full green bar, ready for vibe question + rating
  */
 export default function ListeningTimer({ isPlaying, displayMs, isEligible }: Props) {
   const seconds = Math.floor(displayMs / 1000)
@@ -35,9 +39,9 @@ export default function ListeningTimer({ isPlaying, displayMs, isEligible }: Pro
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-gray-400">
+        <span className="text-sm font-medium text-gray-300">
           {isEligible
-            ? 'Ready to rate!'
+            ? '✓ 30 seconds reached'
             : isPlaying
             ? `Listening... ${cappedSeconds}s / 30s`
             : `Paused — ${cappedSeconds}s / 30s`}
@@ -45,7 +49,7 @@ export default function ListeningTimer({ isPlaying, displayMs, isEligible }: Pro
         <span className={`text-xs font-semibold ${
           isEligible ? 'text-green-400' : isPlaying ? 'text-green-500' : 'text-yellow-500'
         }`}>
-          {isEligible ? '✓ Threshold reached' : isPlaying ? '● Playing' : '⏸ Paused'}
+          {isEligible ? '🎧 Ready' : isPlaying ? '● Playing' : '⏸ Paused'}
         </span>
       </div>
 
@@ -58,11 +62,15 @@ export default function ListeningTimer({ isPlaying, displayMs, isEligible }: Pro
         />
       </div>
 
-      {!isEligible && (
-        <p className="mt-3 text-xs text-gray-500">
-          {isPlaying
-            ? 'Timer only runs while audio is playing and this tab is visible.'
-            : 'Resume playback to continue accumulating listening time.'}
+      {!isEligible && !isPlaying && (
+        <p className="mt-2 text-xs text-yellow-600">
+          Progress resets on pause or tab switch — resume to continue.
+        </p>
+      )}
+
+      {!isEligible && isPlaying && (
+        <p className="mt-2 text-xs text-gray-500">
+          Keep playing without pausing or switching tabs.
         </p>
       )}
     </div>

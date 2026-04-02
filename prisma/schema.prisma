@@ -46,6 +46,7 @@ model Rating {
   id        String           @id @default(cuid())
   sessionId String           @unique
   score     Int
+  vibe      String?          // Optional: vibe tag selected by user before rating (anti-gaming friction)
   createdAt DateTime         @default(now())
   // Cascade: deleting a session removes its rating
   session   ListeningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)

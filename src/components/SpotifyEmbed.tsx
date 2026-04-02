@@ -2,46 +2,53 @@
 
 import { useEffect, useRef } from 'react'
 
+interface PlaybackState {
+  isPlaying: boolean
+  position: number  // seconds — used by parent to detect forward seeks
+}
+
 interface Props {
   trackId: string
-  onPlayStateChange: (isPlaying: boolean) => void
+  onPlaybackUpdate: (state: PlaybackState) => void
 }
 
 /**
  * Renders the Spotify embed iframe and listens for postMessage playback events.
  *
- * The Spotify embed iframe sends playback_update messages to the parent window
- * via postMessage without needing the IFrame API script. We listen for these
- * to get real play/pause state.
- *
- * If Spotify changes their message format, the fallback is the manual timer
- * button which is still the server-side enforced path anyway.
+ * The Spotify embed fires `playback_update` messages to the parent window
+ * containing isPaused and position. We forward these so the parent can:
+ *   1. Drive the play/pause state for the timer
+ *   2. Detect forward seeks (position jump > threshold → reset timer)
  */
-export default function SpotifyEmbed({ trackId, onPlayStateChange }: Props) {
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-  const onPlayStateChangeRef = useRef(onPlayStateChange)
-  onPlayStateChangeRef.current = onPlayStateChange
+export default function SpotifyEmbed({ trackId, onPlaybackUpdate }: Props) {
+  const callbackRef = useRef(onPlaybackUpdate)
+  callbackRef.current = onPlaybackUpdate
 
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
-      // Only accept messages from Spotify's embed domain
       if (event.origin !== 'https://open.spotify.com') return
 
       try {
         const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
 
-        // Spotify embed sends playback_update with isPaused field
-        if (data?.type === 'playback_update') {
-          onPlayStateChangeRef.current(!data.payload?.isPaused)
+        // Primary format: { type: "playback_update", payload: { isPaused, position, duration } }
+        if (data?.type === 'playback_update' && data.payload) {
+          callbackRef.current({
+            isPlaying: !data.payload.isPaused,
+            position: data.payload.position ?? 0,
+          })
           return
         }
 
-        // Some versions use a different shape
+        // Fallback format: { isPaused, position }
         if (typeof data?.isPaused === 'boolean') {
-          onPlayStateChangeRef.current(!data.isPaused)
+          callbackRef.current({
+            isPlaying: !data.isPaused,
+            position: data.position ?? 0,
+          })
         }
       } catch {
-        // Ignore unparseable messages from other iframes
+        // Ignore unparseable messages
       }
     }
 
@@ -54,7 +61,6 @@ export default function SpotifyEmbed({ trackId, onPlayStateChange }: Props) {
   return (
     <div className="rounded-xl overflow-hidden shadow-xl">
       <iframe
-        ref={iframeRef}
         src={embedUrl}
         width="100%"
         height="352"

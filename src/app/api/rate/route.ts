@@ -4,6 +4,8 @@ import { getAuthenticatedUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 // Strict schema — all fields required, ranges enforced
+const VALID_VIBES = ['energetic', 'chill', 'emotional', 'hype', 'unique'] as const
+
 const rateSchema = z.object({
   sessionId: z.string().cuid('sessionId must be a valid cuid'),
   score: z
@@ -16,6 +18,8 @@ const rateSchema = z.object({
     .int('activeListenTimeMs must be an integer')
     .min(0)
     .max(600_000, 'activeListenTimeMs cannot exceed 10 minutes'),
+  // Optional vibe tag from the friction question — validated against known values
+  vibe: z.enum(VALID_VIBES).optional(),
 })
 
 /**
@@ -49,7 +53,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { sessionId, score, activeListenTimeMs } = parsed.data
+    const { sessionId, score, activeListenTimeMs, vibe } = parsed.data
 
     // Fetch the session with its existing rating (if any)
     const session = await prisma.listeningSession.findUnique({
@@ -112,6 +116,7 @@ export async function POST(req: NextRequest) {
         data: {
           sessionId,
           score,
+          ...(vibe ? { vibe } : {}),
         },
       }),
       prisma.user.update({

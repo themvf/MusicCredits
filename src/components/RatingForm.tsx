@@ -6,6 +6,7 @@ interface Props {
   sessionId: string
   isEligible: boolean
   accumulatedMs: number
+  vibe: string  // Required — only rendered after vibe question is answered
   onSuccess: (newCredits: number) => void
 }
 
@@ -17,6 +18,7 @@ export default function RatingForm({
   sessionId,
   isEligible,
   accumulatedMs,
+  vibe,
   onSuccess,
 }: Props) {
   const [hoveredStar, setHoveredStar] = useState(0)
@@ -41,6 +43,7 @@ export default function RatingForm({
           sessionId,
           score: selectedStar,
           activeListenTimeMs: accumulatedMs,
+          vibe,
         }),
       })
 
