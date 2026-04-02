@@ -22,7 +22,8 @@ model Track {
   spotifyUrl String
   createdAt  DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id])
-  sessions   ListeningSession[]
+  // Cascade: deleting a track removes all its sessions (and their ratings)
+  sessions   ListeningSession[] @relation("TrackSessions")
 }
 
 model ListeningSession {
@@ -33,7 +34,9 @@ model ListeningSession {
   activeListenTimeMs Int      @default(0)
   completed          Boolean  @default(false)
   user               User     @relation(fields: [userId], references: [id])
-  track              Track    @relation(fields: [trackId], references: [id])
+  // Cascade: deleting a track removes its sessions
+  track              Track    @relation("TrackSessions", fields: [trackId], references: [id], onDelete: Cascade)
+  // Cascade: deleting a session removes its rating
   rating             Rating?
 
   @@unique([userId, trackId])
@@ -44,5 +47,6 @@ model Rating {
   sessionId String           @unique
   score     Int
   createdAt DateTime         @default(now())
-  session   ListeningSession @relation(fields: [sessionId], references: [id])
+  // Cascade: deleting a session removes its rating
+  session   ListeningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
