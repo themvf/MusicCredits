@@ -2,11 +2,10 @@
 
 import { useEffect, useRef } from 'react'
 
-// TypeScript declarations for the Spotify IFrame API global
 declare global {
   interface Window {
     onSpotifyIframeApiReady: (IFrameAPI: SpotifyIFrameAPI) => void
-    SpotifyIframeApiReady?: boolean
+    _spotifyIFrameAPI?: SpotifyIFrameAPI
   }
 }
 
@@ -20,7 +19,7 @@ interface SpotifyIFrameAPI {
 
 interface PlaybackUpdate {
   isPaused: boolean
-  position: number  // seconds elapsed
+  position: number
   duration: number
 }
 
@@ -37,26 +36,29 @@ interface Props {
 /**
  * Renders the Spotify embed using the official IFrame API.
  *
- * The IFrame API fires `playback_update` events with real playback state
- * (isPaused, position, duration). We forward these to the parent so the
- * timer can accumulate time only when audio is actually playing.
- *
- * Cross-origin note: we cannot access the audio element inside the iframe
- * directly. The IFrame API is the only official way to observe playback state.
+ * Handles two cases:
+ *   1. First load — injects the script, waits for onSpotifyIframeApiReady
+ *   2. Re-render / navigation — script already loaded, API stored on window,
+ *      call createController immediately without waiting for the callback
  */
 export default function SpotifyEmbed({ trackId, onPlaybackUpdate }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const controllerRef = useRef<SpotifyEmbedController | null>(null)
+  // Keep a ref to the latest callback to avoid stale closures
+  const callbackRef = useRef(onPlaybackUpdate)
+  callbackRef.current = onPlaybackUpdate
 
   useEffect(() => {
     if (!containerRef.current) return
 
     const uri = `spotify:track:${trackId}`
 
-    function initController(IFrameAPI: SpotifyIFrameAPI) {
+    function createController(IFrameAPI: SpotifyIFrameAPI) {
       if (!containerRef.current) return
 
-      // Clear any previous embed (e.g. if trackId changes)
+      // Destroy previous controller if trackId changed
+      controllerRef.current?.destroy()
+      controllerRef.current = null
       containerRef.current.innerHTML = ''
 
       IFrameAPI.createController(
@@ -64,31 +66,26 @@ export default function SpotifyEmbed({ trackId, onPlaybackUpdate }: Props) {
         { uri, width: '100%', height: 352 },
         (controller) => {
           controllerRef.current = controller
-
-          // playback_update fires on every state change: play, pause, seek, timeupdate
           controller.addListener('playback_update', (e) => {
-            onPlaybackUpdate(e.data)
+            callbackRef.current(e.data)
           })
         }
       )
     }
 
-    if (window.SpotifyIframeApiReady) {
-      // API already loaded from a previous render — re-init directly
-      // The API object is stored on window by the script
-      // We trigger re-init by firing the ready callback if available
-      // This handles React StrictMode double-mount and navigation
+    // Case 1: API already loaded from a previous render — use it immediately
+    if (window._spotifyIFrameAPI) {
+      createController(window._spotifyIFrameAPI)
+      return
     }
 
-    // Set up the ready callback before the script loads
+    // Case 2: First load — set the global callback then inject the script
     window.onSpotifyIframeApiReady = (IFrameAPI) => {
-      window.SpotifyIframeApiReady = true
-      initController(IFrameAPI)
+      window._spotifyIFrameAPI = IFrameAPI
+      createController(IFrameAPI)
     }
 
-    // Only inject the script once per page load
-    const existingScript = document.getElementById('spotify-iframe-api')
-    if (!existingScript) {
+    if (!document.getElementById('spotify-iframe-api')) {
       const script = document.createElement('script')
       script.id = 'spotify-iframe-api'
       script.src = 'https://open.spotify.com/embed/iframe-api/v1'
@@ -97,19 +94,13 @@ export default function SpotifyEmbed({ trackId, onPlaybackUpdate }: Props) {
     }
 
     return () => {
-      // Destroy controller on unmount to clean up the embed
       controllerRef.current?.destroy()
       controllerRef.current = null
     }
-  }, [trackId]) // Re-init if the track changes
-
-  // onPlaybackUpdate is excluded from deps intentionally — it's a stable
-  // callback reference passed from ListenPageClient via useCallback
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackId])
 
   return (
-    <div className="rounded-xl overflow-hidden shadow-xl">
-      {/* The IFrame API injects the iframe into this container */}
+    <div className="rounded-xl overflow-hidden shadow-xl min-h-[352px] bg-gray-900">
       <div ref={containerRef} />
     </div>
   )
