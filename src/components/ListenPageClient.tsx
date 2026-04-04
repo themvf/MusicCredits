@@ -20,8 +20,6 @@ import {
   getSpotifyTrackReference,
 } from '@/lib/spotify'
 
-const SEEK_THRESHOLD_SECONDS = 4
-
 interface ListenPageClientProps {
   trackId: string
   sessionId: string
@@ -32,7 +30,6 @@ export default function ListenPageClient({
   sessionId,
 }: ListenPageClientProps) {
   const feedbackRef = useRef<HTMLDivElement | null>(null)
-  const prevPositionRef = useRef<number | null>(null)
   const eligibleAtRef = useRef<number | null>(null)
 
   const [isPlaying, setIsPlaying] = useState(false)
@@ -45,7 +42,7 @@ export default function ListenPageClient({
   const [earnedCredit, setEarnedCredit] = useState(false)
   const [newCredits, setNewCredits] = useState<number | null>(null)
 
-  const { displayMs, isEligible, resetsCount, reset } = useListeningSession(isPlaying)
+  const { displayMs, isEligible, interruptionsCount } = useListeningSession(isPlaying)
 
   useEffect(() => {
     if (isEligible && eligibleAtRef.current === null) {
@@ -61,19 +58,10 @@ export default function ListenPageClient({
   }, [isEligible])
 
   const handlePlaybackUpdate = useCallback(
-    ({ isPlaying: playing, position }: { isPlaying: boolean; position: number }) => {
+    ({ isPlaying: playing }: { isPlaying: boolean; position: number }) => {
       setIsPlaying(playing)
-
-      if (playing && prevPositionRef.current !== null) {
-        const delta = position - prevPositionRef.current
-        if (delta > SEEK_THRESHOLD_SECONDS) {
-          reset()
-        }
-      }
-
-      prevPositionRef.current = position
     },
-    [reset]
+    []
   )
 
   useEffect(() => {
@@ -146,7 +134,7 @@ export default function ListenPageClient({
             href={`/playlist-verify?trackId=${trackId}`}
             className="button-primary justify-center"
           >
-            Verify Playlist Add
+            Add to Playlist
           </Link>
           <Link href="/dashboard" className="button-secondary justify-center">
             Back to dashboard
@@ -193,8 +181,8 @@ export default function ListenPageClient({
               Listen and earn
             </h1>
             <p className="max-w-3xl text-base leading-7 text-slate-400">
-              Keep Spotify playing for a full 30 seconds to unlock your rating
-              and collect one verified credit.
+              Accumulate 30 total seconds of playback to unlock your rating and
+              move into the playlist step.
             </p>
           </div>
         </div>
@@ -210,9 +198,11 @@ export default function ListenPageClient({
           </div>
           <div className="surface-card-soft p-4">
             <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-              Resets
+              Interruptions
             </p>
-            <p className="mt-3 text-2xl font-semibold text-white">{resetsCount}</p>
+            <p className="mt-3 text-2xl font-semibold text-white">
+              {interruptionsCount}
+            </p>
           </div>
           <div className="surface-card-soft p-4">
             <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
@@ -263,6 +253,7 @@ export default function ListenPageClient({
             isPlaying={isPlaying}
             displayMs={displayMs}
             isEligible={isEligible}
+            addToPlaylistUrl={spotifyUrl}
             onAdvance={scrollToFeedback}
           />
         </div>
@@ -276,7 +267,8 @@ export default function ListenPageClient({
               <div>
                 <p className="text-sm font-medium text-white">Session rules</p>
                 <p className="text-sm text-slate-400">
-                  Timer resets on pauses, tab switches, or forward seeks.
+                  Total play time counts across pauses and scrubbing. Progress
+                  only moves while audio is actively playing on this page.
                 </p>
               </div>
             </div>
@@ -310,7 +302,7 @@ export default function ListenPageClient({
               isEligible={isEligible}
               accumulatedMs={displayMs}
               vibe={selectedVibe}
-              resetsCount={resetsCount}
+              resetsCount={interruptionsCount}
               timeToVibeMs={timeToVibeMs}
               onSuccess={handleRatingSuccess}
             />

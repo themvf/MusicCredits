@@ -6,6 +6,7 @@ interface ListeningTimerProps {
   isPlaying: boolean
   displayMs: number
   isEligible: boolean
+  addToPlaylistUrl?: string | null
   onAdvance?: () => void
 }
 
@@ -15,6 +16,7 @@ export default function ListeningTimer({
   isPlaying,
   displayMs,
   isEligible,
+  addToPlaylistUrl,
   onAdvance,
 }: ListeningTimerProps) {
   const elapsedSeconds = Math.min(Math.floor(displayMs / 1000), 30)
@@ -40,7 +42,7 @@ export default function ListeningTimer({
               </span>
             </div>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Stay on this tab and keep Spotify playing to unlock the next step.
+              Stay on this tab and let Spotify play until you reach 30 total seconds.
             </p>
           </div>
         </div>
@@ -68,8 +70,8 @@ export default function ListeningTimer({
                 ? isEligible
                   ? 'Next step is ready.'
                   : isPlaying
-                    ? 'Progress counts while audio plays continuously.'
-                    : 'Progress resets if playback stops.'
+                    ? 'Progress counts while audio is playing.'
+                    : 'Progress is paused until playback resumes.'
                 : 'Press play on the Spotify embed to begin.'}
             </span>
           </div>
@@ -87,16 +89,38 @@ export default function ListeningTimer({
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm leading-6 text-slate-400">
-              Skipping ahead is disabled until the full 30-second session is complete.
+              Scrubbing is allowed. Only your total active play time must reach 30 seconds.
             </p>
-            <button
-              type="button"
-              onClick={onAdvance}
-              disabled={!isEligible}
-              className="button-secondary disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-            </button>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              {addToPlaylistUrl ? (
+                isEligible ? (
+                  <a
+                    href={addToPlaylistUrl}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="button-primary justify-center"
+                  >
+                    Add to Playlist
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="button-primary justify-center disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Add to Playlist
+                  </button>
+                )
+              ) : null}
+              <button
+                type="button"
+                onClick={onAdvance}
+                disabled={!isEligible}
+                className="button-secondary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -61,8 +61,9 @@ function loadSpotifyIframeApi() {
   window.__spotifyIframeApiPromise = new Promise<SpotifyIframeApi>((resolve, reject) => {
     const previousReadyHandler = window.onSpotifyIframeApiReady
     const timeoutId = window.setTimeout(() => {
+      window.__spotifyIframeApiPromise = undefined
       reject(new Error('Spotify iFrame API timed out'))
-    }, 10_000)
+    }, 15_000)
 
     window.onSpotifyIframeApiReady = (api: SpotifyIframeApi) => {
       window.clearTimeout(timeoutId)
@@ -85,6 +86,7 @@ function loadSpotifyIframeApi() {
     script.dataset.spotifyIframeApi = 'true'
     script.onerror = () => {
       window.clearTimeout(timeoutId)
+      window.__spotifyIframeApiPromise = undefined
       reject(new Error('Spotify iFrame API failed to load'))
     }
     document.body.appendChild(script)
@@ -206,11 +208,24 @@ export default function SpotifyEmbed({
       </div>
 
       <div className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-slate-950/70">
-        <div
-          ref={containerRef}
-          aria-label="Spotify track player"
-          className="min-h-[352px]"
-        />
+        {syncError ? (
+          <iframe
+            src={`https://open.spotify.com/embed/track/${trackId}`}
+            width="100%"
+            height="352"
+            frameBorder="0"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+            title="Spotify track player"
+            className="block"
+          />
+        ) : (
+          <div
+            ref={containerRef}
+            aria-label="Spotify track player"
+            className="min-h-[352px]"
+          />
+        )}
       </div>
 
       {syncError && (
@@ -219,7 +234,7 @@ export default function SpotifyEmbed({
 
       <div className="mt-4 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
         <WaveformIcon className="h-3.5 w-3.5" />
-        Forward seeks or pauses reset the timer.
+        Scrubbing is allowed. Playback time only advances while audio is running.
       </div>
     </div>
   )

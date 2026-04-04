@@ -5,68 +5,60 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 interface UseListeningSessionResult {
   displayMs: number
   isEligible: boolean
-  resetsCount: number   // Total interruptions — sent to backend for behavioral logging
-  reset: () => void     // Called externally on forward seek
+  interruptionsCount: number
 }
 
 /**
- * Accumulates CONTINUOUS active listening time.
+ * Accumulates TOTAL active listening time while playback is running and the
+ * page remains visible.
  *
- * The counter RESETS to zero on any interruption:
- *   - Audio paused (isPlaying → false)
- *   - Tab hidden (Page Visibility API)
- *   - Forward seek (external reset() call from ListenPageClient)
+ * Interruptions no longer reset progress. We simply stop accumulating until
+ * playback resumes.
  *
- * resetsCount increments on every interruption and is sent to the backend
- * with the rating so we can build behavioral analytics and trust scoring.
+ * interruptionsCount still captures pauses/tab hides for behavioral logging.
  */
 export function useListeningSession(isPlaying: boolean): UseListeningSessionResult {
   const [displayMs, setDisplayMs] = useState(0)
-  const [resetsCount, setResetsCount] = useState(0)
+  const [interruptionsCount, setInterruptionsCount] = useState(0)
 
+  const accumulatedMsRef = useRef(0)
   const trackingStartRef = useRef<number | null>(null)
 
-  // Internal helper — resets timer and bumps the interruption counter
-  const doReset = useCallback((restartIfVisible: boolean) => {
-    trackingStartRef.current = null
-    setDisplayMs(0)
-    setResetsCount((c) => c + 1)
-    if (restartIfVisible && !document.hidden) {
+  const stopTracking = useCallback((countInterruption: boolean) => {
+    if (trackingStartRef.current !== null) {
+      accumulatedMsRef.current += Date.now() - trackingStartRef.current
+      trackingStartRef.current = null
+      setDisplayMs(accumulatedMsRef.current)
+    }
+
+    if (countInterruption) {
+      setInterruptionsCount((count) => count + 1)
+    }
+  }, [])
+
+  const startTracking = useCallback(() => {
+    if (trackingStartRef.current === null && !document.hidden) {
       trackingStartRef.current = Date.now()
     }
   }, [])
 
-  // Exposed for seek detection in ListenPageClient
-  const reset = useCallback(() => {
-    doReset(isPlaying)
-  }, [doReset, isPlaying])
-
   useEffect(() => {
-    if (!isPlaying) {
-      // Paused — reset progress. Only count if this isn't the very first state
-      // (avoid counting the initial mount as an interruption)
-      if (trackingStartRef.current !== null || displayMs > 0) {
-        trackingStartRef.current = null
-        setDisplayMs(0)
-        setResetsCount((c) => c + 1)
-      }
-      return
-    }
-
-    // Audio is playing — start tracking from now if tab is visible
-    if (!document.hidden) {
-      trackingStartRef.current = Date.now()
+    if (isPlaying) {
+      startTracking()
+    } else if (trackingStartRef.current !== null || accumulatedMsRef.current > 0) {
+      stopTracking(true)
     }
 
     function handleVisibilityChange() {
       if (document.hidden) {
-        // Tab hidden — reset progress
-        trackingStartRef.current = null
-        setDisplayMs(0)
-        setResetsCount((c) => c + 1)
-      } else {
-        // Tab visible again while still playing — restart
-        trackingStartRef.current = Date.now()
+        if (trackingStartRef.current !== null || accumulatedMsRef.current > 0) {
+          stopTracking(true)
+        }
+        return
+      }
+
+      if (isPlaying) {
+        startTracking()
       }
     }
 
@@ -74,21 +66,21 @@ export function useListeningSession(isPlaying: boolean): UseListeningSessionResu
 
     const intervalId = setInterval(() => {
       if (trackingStartRef.current !== null) {
-        setDisplayMs(Date.now() - trackingStartRef.current)
+        setDisplayMs(
+          accumulatedMsRef.current + (Date.now() - trackingStartRef.current)
+        )
       }
     }, 500)
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       clearInterval(intervalId)
-      trackingStartRef.current = null
     }
-  }, [isPlaying]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isPlaying, startTracking, stopTracking])
 
   return {
     displayMs,
     isEligible: displayMs >= 30_000,
-    resetsCount,
-    reset,
+    interruptionsCount,
   }
 }

@@ -28,19 +28,19 @@ export default async function ListenPage({
               <div className="surface-card-soft p-5">
                 <HeadphonesIcon className="h-5 w-5 text-brand-300" />
                 <p className="mt-4 text-sm font-semibold text-white">
-                  30 focused seconds
+                  30 total seconds
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-400">
-                  Keep Spotify playing continuously to unlock the next step.
+                  Playback time accumulates while the song is actually playing.
                 </p>
               </div>
               <div className="surface-card-soft p-5">
                 <ShieldIcon className="h-5 w-5 text-brand-300" />
                 <p className="mt-4 text-sm font-semibold text-white">
-                  Anti-skip session rules
+                  Flexible listen flow
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-400">
-                  Pauses, tab switches, and forward seeks reset the timer.
+                  Scrub or pause if you need to. The timer resumes from the time you have already earned.
                 </p>
               </div>
               <div className="surface-card-soft p-5">
