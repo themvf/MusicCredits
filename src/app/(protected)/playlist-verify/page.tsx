@@ -179,7 +179,10 @@ export default async function PlaylistVerifyPage({
                 playlistUrl: verification.playlist.spotifyUrl,
                 verified: verification.verified,
                 quality: verification.quality,
+                verificationType: verification.verificationType,
                 verifiedAt: verification.verifiedAt?.toISOString() ?? null,
+                persistenceDueAt:
+                  verification.persistenceDueAt?.toISOString() ?? null,
               }
             : null
         }

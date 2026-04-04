@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { ApiRouteError, handleApiError } from '@/lib/api-error'
 import { getAuthenticatedUser } from '@/lib/auth'
+import {
+  getPlatformPlaylistVerificationState,
+  getPlaylistVerificationDueAt,
+} from '@/lib/playlist-verification'
+import { schedulePlaylistVerificationPersistenceCheck } from '@/lib/playlist-verification-workflow'
 import { prisma } from '@/lib/prisma'
 import {
   addTrackToPlaylistWithPlatformToken,
@@ -39,8 +44,18 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    if (existingVerification?.verified) {
-      throw new ApiRouteError(409, 'This track has already been verified for your account')
+    if (existingVerification?.verifiedAt) {
+      throw new ApiRouteError(
+        409,
+        'This track has already completed playlist verification for your account'
+      )
+    }
+
+    if (existingVerification?.quality === 'pending' && existingVerification.snapshotId) {
+      throw new ApiRouteError(
+        409,
+        'Finish or replace the current snapshot before using a platform playlist add'
+      )
     }
 
     let playlist =
@@ -95,6 +110,8 @@ export async function POST(req: NextRequest) {
     )
 
     const now = new Date()
+    const nextState = getPlatformPlaylistVerificationState()
+    const persistenceDueAt = getPlaylistVerificationDueAt(now)
     const verification = await prisma.playlistVerification.upsert({
       where: {
         userId_trackId: {
@@ -106,24 +123,37 @@ export async function POST(req: NextRequest) {
         userId: user.id,
         trackId: body.trackId,
         playlistId: playlist.id,
-        verified: true,
-        quality: 'verified',
+        verificationType: 'platform',
+        snapshotId: null,
+        verified: nextState.verified,
+        quality: nextState.quality,
         verifiedAt: now,
         lastCheckedAt: now,
+        persistenceDueAt,
       },
       update: {
         playlistId: playlist.id,
-        verified: true,
-        quality: 'verified',
+        verificationType: 'platform',
+        snapshotId: null,
+        verified: nextState.verified,
+        quality: nextState.quality,
         verifiedAt: now,
         lastCheckedAt: now,
+        persistenceDueAt,
       },
     })
+
+    await schedulePlaylistVerificationPersistenceCheck(
+      verification.id,
+      persistenceDueAt
+    )
 
     return NextResponse.json({
       verificationId: verification.id,
       verified: verification.verified,
       quality: verification.quality,
+      verificationType: verification.verificationType,
+      persistenceDueAt: verification.persistenceDueAt?.toISOString() ?? null,
       snapshotId: addResult.snapshot_id,
     })
   } catch (error) {

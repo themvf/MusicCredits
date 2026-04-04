@@ -375,6 +375,13 @@ export async function fetchPlaylistTrackIdsForUser(
   return fetchAllPlaylistTrackIds(accessToken, spotifyPlaylistId)
 }
 
+export async function fetchPlaylistTrackIdsForPlatform(
+  spotifyPlaylistId: string
+) {
+  const accessToken = await getPlatformSpotifyAccessToken()
+  return fetchAllPlaylistTrackIds(accessToken, spotifyPlaylistId)
+}
+
 export function getTrackIdsFromSnapshot(trackIds: Prisma.JsonValue) {
   if (!Array.isArray(trackIds)) {
     return []

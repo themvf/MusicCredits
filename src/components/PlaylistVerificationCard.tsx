@@ -45,7 +45,9 @@ interface VerificationState {
   playlistUrl: string | null
   verified: boolean
   quality: 'pending' | 'verified' | 'failed' | 'low_quality'
+  verificationType: 'snapshot' | 'platform'
   verifiedAt: string | null
+  persistenceDueAt: string | null
 }
 
 interface PlaylistVerificationCardProps {
@@ -211,16 +213,18 @@ export default function PlaylistVerificationCard({
     : 0
 
   const recheckReadyAt = verification?.verifiedAt
-    ? new Date(verification.verifiedAt).getTime() + RECHECK_DELAY_MS
+    ? verification.persistenceDueAt
+      ? new Date(verification.persistenceDueAt).getTime()
+      : new Date(verification.verifiedAt).getTime() + RECHECK_DELAY_MS
     : null
   const recheckCountdownMs = recheckReadyAt
     ? Math.max(0, recheckReadyAt - now)
     : 0
 
-  const state = verification?.verified
-    ? verification.quality === 'low_quality'
-      ? 'low_quality'
-      : 'verified'
+  const state = verification?.quality === 'low_quality'
+    ? 'low_quality'
+    : verification?.verified
+      ? 'verified'
     : verification?.quality === 'failed'
       ? 'failed'
       : snapshot
@@ -312,7 +316,9 @@ export default function PlaylistVerificationCard({
         playlistUrl: selectedPlaylist?.spotifyUrl ?? null,
         verified: data.verified,
         quality: data.quality,
+        verificationType: data.verificationType,
         verifiedAt: data.verifiedAt,
+        persistenceDueAt: data.persistenceDueAt,
       })
       setSnapshot(null)
 
@@ -321,7 +327,7 @@ export default function PlaylistVerificationCard({
         tone: data.verified ? 'success' : 'error',
         title: data.verified ? 'Playlist add verified' : 'Add not detected',
         description: data.verified
-          ? 'Spotify confirmed the track was newly added to the selected playlist.'
+          ? 'Spotify confirmed the new add and queued an automatic five-minute persistence check.'
           : 'Spotify did not show a new add yet. Take a fresh snapshot and try again after adding the track.',
       })
     } catch (error) {
@@ -364,7 +370,9 @@ export default function PlaylistVerificationCard({
         current
           ? {
               ...current,
+              verified: data.verified,
               quality: data.quality,
+              persistenceDueAt: data.persistenceDueAt,
             }
           : current
       )
@@ -532,7 +540,11 @@ export default function PlaylistVerificationCard({
                   id="playlist-selector"
                   value={selectedPlaylistId}
                   onChange={(event) => setSelectedPlaylistId(event.target.value)}
-                  disabled={loadingPlaylists || Boolean(snapshot) || verification?.verified}
+                  disabled={
+                    loadingPlaylists ||
+                    Boolean(snapshot) ||
+                    Boolean(verification?.verifiedAt)
+                  }
                   className="h-14 w-full rounded-[1.3rem] border border-white/10 bg-slate-950/80 px-4 text-base text-white outline-none transition focus:border-brand-400/40 focus:ring-2 focus:ring-brand-400/15 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <option value="">Select a playlist</option>
@@ -708,12 +720,12 @@ export default function PlaylistVerificationCard({
                       <div>
                         <p className="text-sm font-medium text-white">
                           {state === 'low_quality'
-                            ? 'Verified, but low quality'
+                            ? 'Removed before the hold window'
                             : 'Verified add confirmed'}
                         </p>
                         <p className="text-sm text-slate-300">
                           {state === 'low_quality'
-                            ? 'Spotify no longer shows the track in the playlist after the persistence check.'
+                            ? 'Spotify no longer showed the track when the automatic persistence check ran, so this add no longer counts as verified.'
                             : `Spotify confirmed a real add in ${verification.playlistName}.`}
                         </p>
                       </div>
@@ -725,7 +737,7 @@ export default function PlaylistVerificationCard({
                       <div>
                         <p className="text-sm font-medium text-white">Persistence check</p>
                         <p className="mt-1 text-sm text-slate-400">
-                          Re-check after five minutes to flag quick removals as low quality.
+                          SoundSwap runs the five-minute hold check automatically. The manual action stays available as a fallback.
                         </p>
                       </div>
                       <button
@@ -734,7 +746,7 @@ export default function PlaylistVerificationCard({
                         disabled={rechecking || recheckCountdownMs > 0}
                         className="button-secondary disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {rechecking ? 'Checking...' : 'Re-check'}
+                        {rechecking ? 'Checking...' : 'Manual Re-check'}
                       </button>
                     </div>
 
@@ -757,8 +769,10 @@ export default function PlaylistVerificationCard({
                     </div>
                     <p className="mt-3 text-xs uppercase tracking-[0.18em] text-slate-400">
                       {recheckCountdownMs > 0
-                        ? `Re-check unlocks in ${Math.ceil(recheckCountdownMs / 1000)}s`
-                        : 'Re-check available'}
+                        ? `Automatic check runs in ${Math.ceil(recheckCountdownMs / 1000)}s`
+                        : verification.persistenceDueAt
+                          ? 'Automatic check due now'
+                          : 'Automatic check recorded'}
                     </p>
                   </div>
                 </div>

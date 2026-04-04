@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { ApiRouteError, handleApiError } from '@/lib/api-error'
 import { getAuthenticatedUser } from '@/lib/auth'
+import { getPendingPlaylistVerificationState } from '@/lib/playlist-verification'
 import { prisma } from '@/lib/prisma'
 import {
   assertPlaylistVerificationEligibility,
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
       throw new ApiRouteError(404, 'Playlist not found')
     }
 
+    const pendingState = getPendingPlaylistVerificationState()
     const existingVerification = await prisma.playlistVerification.findUnique({
       where: {
         userId_trackId: {
@@ -44,8 +46,11 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    if (existingVerification?.verified) {
-      throw new ApiRouteError(409, 'This track has already been verified for your account')
+    if (existingVerification?.verifiedAt) {
+      throw new ApiRouteError(
+        409,
+        'This track has already completed playlist verification for your account'
+      )
     }
 
     const { spotifyTrackId } = await requireTrackSpotifyId(body.trackId)
@@ -83,16 +88,19 @@ export async function POST(req: NextRequest) {
         trackId: body.trackId,
         playlistId: playlist.id,
         snapshotId: snapshot.id,
-        verified: false,
-        quality: 'pending',
+        verificationType: 'snapshot',
+        verified: pendingState.verified,
+        quality: pendingState.quality,
       },
       update: {
         playlistId: playlist.id,
         snapshotId: snapshot.id,
-        verified: false,
-        quality: 'pending',
+        verificationType: 'snapshot',
+        verified: pendingState.verified,
+        quality: pendingState.quality,
         verifiedAt: null,
         lastCheckedAt: null,
+        persistenceDueAt: null,
       },
     })
 

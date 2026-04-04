@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ApiRouteError, handleApiError } from '@/lib/api-error'
 import { getAuthenticatedUser } from '@/lib/auth'
+import { reconcilePlaylistVerificationPersistence } from '@/lib/playlist-verification'
 import { prisma } from '@/lib/prisma'
-import {
-  fetchPlaylistTrackIdsForUser,
-  PLAYLIST_PERSISTENCE_RECHECK_MS,
-  requireTrackSpotifyId,
-} from '@/lib/spotify-api'
 
 export const runtime = 'nodejs'
 
@@ -29,42 +25,16 @@ export async function POST(
       throw new ApiRouteError(404, 'Verification not found')
     }
 
-    if (!verification.verified || !verification.verifiedAt) {
-      throw new ApiRouteError(409, 'Only verified playlist adds can be re-checked')
-    }
-
-    const msUntilAllowed =
-      verification.verifiedAt.getTime() +
-      PLAYLIST_PERSISTENCE_RECHECK_MS -
-      Date.now()
-
-    if (msUntilAllowed > 0) {
-      throw new ApiRouteError(
-        409,
-        `Persistence re-check is not available yet. Try again in ${Math.ceil(msUntilAllowed / 1000)} seconds`
-      )
-    }
-
-    const { spotifyTrackId } = await requireTrackSpotifyId(verification.trackId)
-    const afterTrackIds = await fetchPlaylistTrackIdsForUser(
-      user.id,
-      verification.playlist.spotifyPlaylistId
-    )
-    const stillPresent = afterTrackIds.includes(spotifyTrackId)
-
-    const updated = await prisma.playlistVerification.update({
-      where: { id: verification.id },
-      data: {
-        quality: stillPresent ? 'verified' : 'low_quality',
-        lastCheckedAt: new Date(),
-      },
-    })
+    const { verification: updated, stillPresent, alreadyFinalized } =
+      await reconcilePlaylistVerificationPersistence(verification.id)
 
     return NextResponse.json({
       verificationId: updated.id,
       verified: updated.verified,
       quality: updated.quality,
       stillPresent,
+      alreadyFinalized,
+      persistenceDueAt: updated.persistenceDueAt?.toISOString() ?? null,
     })
   } catch (error) {
     return handleApiError(

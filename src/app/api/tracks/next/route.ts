@@ -8,8 +8,11 @@ export const runtime = 'nodejs'
 /**
  * GET /api/tracks/next
  *
- * Returns the oldest track in the queue that the authenticated user did not
- * submit themselves. Simple FIFO — no recommendation logic for the MVP.
+ * Returns the oldest track in the queue that the authenticated user:
+ * - did not submit themselves
+ * - has not already completed
+ *
+ * Simple FIFO — no recommendation logic for the MVP.
  */
 export async function GET() {
   try {
@@ -19,6 +22,13 @@ export async function GET() {
       where: {
         // Exclude the user's own tracks
         userId: { not: user.id },
+        // Exclude tracks this user has already completed
+        sessions: {
+          none: {
+            userId: user.id,
+            completed: true,
+          },
+        },
       },
       orderBy: {
         // FIFO: oldest track first
