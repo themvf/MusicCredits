@@ -1,3 +1,9 @@
+import RatingStars from '@/components/RatingStars'
+import {
+  getSpotifyTrackLabel,
+  getSpotifyTrackReference,
+} from '@/lib/spotify'
+
 interface Session {
   sessionId: string
   trackId: string
@@ -6,58 +12,66 @@ interface Session {
   score: number | null
 }
 
-interface Props {
+interface ListeningHistoryProps {
   sessions: Session[]
 }
 
-function Stars({ score }: { score: number | null }) {
-  if (!score) return <span className="text-gray-500 text-sm">—</span>
-  return (
-    <span className="text-yellow-400 text-sm">
-      {'★'.repeat(score)}{'☆'.repeat(5 - score)}
-    </span>
-  )
-}
-
-function shortUrl(url: string) {
-  const match = url.match(/track\/([A-Za-z0-9]+)/)
-  return match ? `spotify:track:${match[1].slice(0, 8)}…` : url
-}
-
-export default function ListeningHistory({ sessions }: Props) {
+export default function ListeningHistory({
+  sessions,
+}: ListeningHistoryProps) {
   if (sessions.length === 0) {
     return (
-      <p className="text-gray-500 text-sm py-6 text-center">
-        You haven&apos;t completed any listening sessions yet.
-      </p>
+      <div className="surface-card-soft p-6 text-sm leading-7 text-slate-400">
+        No completed listening sessions yet. Start with the queue to build your
+        credit history.
+      </div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {sessions.map((s) => (
-        <div
-          key={s.sessionId}
-          className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex items-center gap-4"
-        >
-          <div className="flex-1 min-w-0">
-            <a
-              href={s.spotifyUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-green-400 hover:text-green-300 text-sm font-mono truncate block"
-            >
-              {shortUrl(s.spotifyUrl)}
-            </a>
-            <p className="text-gray-500 text-xs mt-1">
-              {new Date(s.completedAt).toLocaleDateString()}
-            </p>
+    <div className="surface-card overflow-hidden">
+      <div className="hidden grid-cols-[minmax(0,2fr)_0.75fr_0.85fr] gap-4 border-b border-white/10 px-6 py-4 text-xs uppercase tracking-[0.22em] text-slate-500 md:grid">
+        <span>Track</span>
+        <span>Date</span>
+        <span>Rating</span>
+      </div>
+
+      <div className="divide-y divide-white/6">
+        {sessions.map((session) => (
+          <div
+            key={session.sessionId}
+            className="grid gap-4 px-6 py-5 md:grid-cols-[minmax(0,2fr)_0.75fr_0.85fr] md:items-center"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-base font-semibold text-white">
+                {getSpotifyTrackLabel(session.spotifyUrl)}
+              </p>
+              <p className="mt-1 truncate text-sm text-slate-400">
+                {getSpotifyTrackReference(session.spotifyUrl)}
+              </p>
+            </div>
+
+            <div className="text-sm text-slate-300">
+              {new Date(session.completedAt).toLocaleDateString()}
+            </div>
+
+            <div className="flex items-center gap-3">
+              {session.score ? (
+                <>
+                  <RatingStars value={session.score} />
+                  <span className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                    {session.score}/5
+                  </span>
+                </>
+              ) : (
+                <span className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                  No rating
+                </span>
+              )}
+            </div>
           </div>
-          <div className="shrink-0">
-            <Stars score={s.score} />
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }

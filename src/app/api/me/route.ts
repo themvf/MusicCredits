@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
+import { handleApiError } from '@/lib/api-error'
 import { getAuthenticatedUser } from '@/lib/auth'
+
+export const runtime = 'nodejs'
 
 export async function GET() {
   try {
@@ -11,10 +14,6 @@ export async function GET() {
       clerkId: user.clerkId,
     })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unauthorized'
-    if (message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return handleApiError(error, 'GET /api/me')
   }
 }

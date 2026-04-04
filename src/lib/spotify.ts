@@ -28,3 +28,13 @@ export function getEmbedUrl(spotifyUrl: string): string | null {
   if (!trackId) return null
   return `https://open.spotify.com/embed/track/${trackId}`
 }
+
+export function getSpotifyTrackReference(spotifyUrl: string): string {
+  const trackId = extractSpotifyTrackId(spotifyUrl)
+  return trackId ? `spotify:track:${trackId.slice(0, 8)}...` : spotifyUrl
+}
+
+export function getSpotifyTrackLabel(spotifyUrl: string): string {
+  const trackId = extractSpotifyTrackId(spotifyUrl)
+  return trackId ? `Track ${trackId.slice(0, 6).toUpperCase()}` : 'Spotify Track'
+}

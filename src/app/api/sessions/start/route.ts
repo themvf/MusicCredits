@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { handleApiError } from '@/lib/api-error'
 import { getAuthenticatedUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+
+export const runtime = 'nodejs'
 
 const startSessionSchema = z.object({
   trackId: z.string().cuid('trackId must be a valid cuid'),
@@ -100,11 +103,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(session, { status: 201 })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    if (message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    console.error('[POST /api/sessions/start]', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return handleApiError(error, 'POST /api/sessions/start')
   }
 }

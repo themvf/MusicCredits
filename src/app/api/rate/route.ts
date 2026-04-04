@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { handleApiError } from '@/lib/api-error'
 import { getAuthenticatedUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+
+export const runtime = 'nodejs'
 
 const VALID_VIBES = ['energetic', 'chill', 'emotional', 'hype', 'unique'] as const
 
@@ -145,11 +148,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ credits: updatedUser.credits })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    if (message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    console.error('[POST /api/rate]', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return handleApiError(error, 'POST /api/rate')
   }
 }

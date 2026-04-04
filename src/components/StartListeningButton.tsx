@@ -2,39 +2,66 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { PlayIcon, SparkIcon } from '@/components/AppIcons'
+import StatusToast from '@/components/StatusToast'
+import { cn } from '@/lib/cn'
 
-/**
- * Client component: calls GET /api/tracks/next, then POST /api/sessions/start,
- * and navigates to /listen with the resulting trackId and sessionId.
- */
-export default function StartListeningButton() {
+interface StartListeningButtonProps {
+  label?: string
+  buttonClassName?: string
+  fullWidth?: boolean
+  showHelperText?: boolean
+}
+
+export default function StartListeningButton({
+  label = 'Start Listening',
+  buttonClassName,
+  fullWidth = false,
+  showHelperText = false,
+}: StartListeningButtonProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [toast, setToast] = useState<{
+    open: boolean
+    tone: 'error' | 'info'
+    title: string
+    description?: string
+  }>({
+    open: false,
+    tone: 'info',
+    title: '',
+  })
 
   async function handleStart() {
     setLoading(true)
-    setError(null)
 
     try {
-      // 1. Get the next track to listen to
       const trackRes = await fetch('/api/tracks/next')
 
       if (trackRes.status === 404) {
-        setError('No tracks available yet. Be the first to submit one!')
+        setToast({
+          open: true,
+          tone: 'info',
+          title: 'Queue is empty',
+          description: 'No tracks are waiting yet. Submit one to kick off the loop.',
+        })
         setLoading(false)
         return
       }
 
       if (!trackRes.ok) {
-        setError('Something went wrong. Please try again.')
+        setToast({
+          open: true,
+          tone: 'error',
+          title: 'Could not load the queue',
+          description: 'Please try again in a moment.',
+        })
         setLoading(false)
         return
       }
 
       const track = await trackRes.json()
 
-      // 2. Create (or resume) a listening session for this track
       const sessionRes = await fetch('/api/sessions/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -42,39 +69,80 @@ export default function StartListeningButton() {
       })
 
       if (sessionRes.status === 409) {
-        setError('You have already completed a session for the only available track.')
+        setToast({
+          open: true,
+          tone: 'info',
+          title: 'Session already completed',
+          description:
+            'You have already finished the only available queued track right now.',
+        })
         setLoading(false)
         return
       }
 
       if (!sessionRes.ok) {
-        setError('Could not start a session. Please try again.')
+        setToast({
+          open: true,
+          tone: 'error',
+          title: 'Could not start a session',
+          description: 'Try again once the queue refreshes.',
+        })
         setLoading(false)
         return
       }
 
       const session = await sessionRes.json()
-
-      // 3. Navigate to the listening page
       router.push(`/listen?trackId=${track.id}&sessionId=${session.id}`)
     } catch {
-      setError('Network error. Please try again.')
+      setToast({
+        open: true,
+        tone: 'error',
+        title: 'Network error',
+        description: 'Check your connection and retry.',
+      })
       setLoading(false)
     }
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className={cn('flex flex-col gap-3', fullWidth && 'w-full')}>
       <button
+        type="button"
         onClick={handleStart}
         disabled={loading}
-        className="w-full py-2.5 bg-green-500 hover:bg-green-400 disabled:bg-gray-700 disabled:text-gray-400 text-black font-semibold text-sm rounded-xl transition-colors"
+        className={cn(
+          'button-primary',
+          fullWidth && 'w-full',
+          loading && 'cursor-wait opacity-80',
+          buttonClassName
+        )}
       >
-        {loading ? 'Finding a track...' : 'Start Listening (+1 credit)'}
+        {loading ? (
+          <>
+            <SparkIcon className="h-4 w-4" />
+            Finding a track...
+          </>
+        ) : (
+          <>
+            <PlayIcon className="h-4 w-4" />
+            {label}
+          </>
+        )}
       </button>
-      {error && (
-        <p className="text-red-400 text-xs text-center">{error}</p>
+
+      {showHelperText && (
+        <p className="text-sm leading-6 text-slate-400">
+          Earn one verified credit for every completed session.
+        </p>
       )}
+
+      <StatusToast
+        open={toast.open}
+        tone={toast.tone}
+        title={toast.title}
+        description={toast.description}
+        onClose={() => setToast((current) => ({ ...current, open: false }))}
+      />
     </div>
   )
 }

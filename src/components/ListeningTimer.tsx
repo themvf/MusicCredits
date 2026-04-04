@@ -1,78 +1,105 @@
 'use client'
 
-interface Props {
+import { CheckIcon, ClockIcon, PlayIcon } from '@/components/AppIcons'
+
+interface ListeningTimerProps {
   isPlaying: boolean
   displayMs: number
   isEligible: boolean
+  onAdvance?: () => void
 }
 
 const REQUIRED_MS = 30_000
 
-/**
- * Displays real-time listening progress.
- *
- * Key behavior: the progress bar resets to 0 on pause, tab switch, or seek.
- * This visually reinforces that 30 CONTINUOUS seconds are required.
- *
- * States:
- *   - Not yet playing:   prompt to press play
- *   - Playing:           live green progress bar
- *   - Paused mid-listen: yellow bar, "Paused — progress reset" warning
- *   - Eligible:          full green bar, ready for vibe question + rating
- */
-export default function ListeningTimer({ isPlaying, displayMs, isEligible }: Props) {
-  const seconds = Math.floor(displayMs / 1000)
-  const cappedSeconds = Math.min(seconds, 30)
+export default function ListeningTimer({
+  isPlaying,
+  displayMs,
+  isEligible,
+  onAdvance,
+}: ListeningTimerProps) {
+  const elapsedSeconds = Math.min(Math.floor(displayMs / 1000), 30)
   const progressPct = Math.min((displayMs / REQUIRED_MS) * 100, 100)
   const hasStarted = displayMs > 0 || isPlaying
 
-  if (!hasStarted) {
-    return (
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-        <p className="text-sm text-gray-400 text-center">
-          Press <span className="text-white font-semibold">▶ play</span> in the player above to start your 30-second timer.
-        </p>
-      </div>
-    )
-  }
-
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-gray-300">
-          {isEligible
-            ? '✓ 30 seconds reached'
-            : isPlaying
-            ? `Listening... ${cappedSeconds}s / 30s`
-            : `Paused — ${cappedSeconds}s / 30s`}
-        </span>
-        <span className={`text-xs font-semibold ${
-          isEligible ? 'text-green-400' : isPlaying ? 'text-green-500' : 'text-yellow-500'
-        }`}>
-          {isEligible ? '🎧 Ready' : isPlaying ? '● Playing' : '⏸ Paused'}
-        </span>
+    <div className="surface-card p-6">
+      <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr] xl:items-end">
+        <div className="space-y-4">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs uppercase tracking-[0.22em] text-slate-500">
+            <ClockIcon className="h-3.5 w-3.5" />
+            30-second timer
+          </div>
+
+          <div>
+            <div className="flex items-end gap-2">
+              <span className="text-5xl font-semibold tracking-tight text-white">
+                {elapsedSeconds}
+              </span>
+              <span className="pb-1 text-sm uppercase tracking-[0.18em] text-slate-500">
+                / 30 sec
+              </span>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-slate-400">
+              Stay on this tab and keep Spotify playing to unlock the next step.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs uppercase tracking-[0.18em] ${
+                isEligible
+                  ? 'border border-brand-400/20 bg-brand-500/12 text-brand-300'
+                  : isPlaying
+                    ? 'border border-sky-400/20 bg-sky-500/10 text-sky-200'
+                    : 'border border-amber-300/20 bg-amber-400/10 text-amber-200'
+              }`}
+            >
+              {isEligible ? (
+                <CheckIcon className="h-3.5 w-3.5" />
+              ) : (
+                <PlayIcon className="h-3.5 w-3.5" />
+              )}
+              {isEligible ? 'Unlocked' : isPlaying ? 'Listening' : 'Paused'}
+            </span>
+            <span className="text-sm text-slate-400">
+              {hasStarted
+                ? isEligible
+                  ? 'Next step is ready.'
+                  : isPlaying
+                    ? 'Progress counts while audio plays continuously.'
+                    : 'Progress resets if playback stops.'
+                : 'Press play on the Spotify embed to begin.'}
+            </span>
+          </div>
+
+          <div className="h-3 overflow-hidden rounded-full bg-slate-950/80">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                isEligible
+                  ? 'bg-[linear-gradient(90deg,rgba(34,197,94,1),rgba(59,130,246,0.65))]'
+                  : 'bg-[linear-gradient(90deg,rgba(59,130,246,0.9),rgba(34,197,94,0.45))]'
+              }`}
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm leading-6 text-slate-400">
+              Skipping ahead is disabled until the full 30-second session is complete.
+            </p>
+            <button
+              type="button"
+              onClick={onAdvance}
+              disabled={!isEligible}
+              className="button-secondary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </div>
-
-      <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${
-            isEligible ? 'bg-green-500' : isPlaying ? 'bg-green-600' : 'bg-yellow-600'
-          }`}
-          style={{ width: `${progressPct}%` }}
-        />
-      </div>
-
-      {!isEligible && !isPlaying && (
-        <p className="mt-2 text-xs text-yellow-600">
-          Progress resets on pause or tab switch — resume to continue.
-        </p>
-      )}
-
-      {!isEligible && isPlaying && (
-        <p className="mt-2 text-xs text-gray-500">
-          Keep playing without pausing or switching tabs.
-        </p>
-      )}
     </div>
   )
 }

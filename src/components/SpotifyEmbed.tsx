@@ -1,26 +1,22 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { HeadphonesIcon, WaveformIcon } from '@/components/AppIcons'
 
 interface PlaybackState {
   isPlaying: boolean
-  position: number  // seconds — used by parent to detect forward seeks
+  position: number
 }
 
-interface Props {
+interface SpotifyEmbedProps {
   trackId: string
   onPlaybackUpdate: (state: PlaybackState) => void
 }
 
-/**
- * Renders the Spotify embed iframe and listens for postMessage playback events.
- *
- * The Spotify embed fires `playback_update` messages to the parent window
- * containing isPaused and position. We forward these so the parent can:
- *   1. Drive the play/pause state for the timer
- *   2. Detect forward seeks (position jump > threshold → reset timer)
- */
-export default function SpotifyEmbed({ trackId, onPlaybackUpdate }: Props) {
+export default function SpotifyEmbed({
+  trackId,
+  onPlaybackUpdate,
+}: SpotifyEmbedProps) {
   const callbackRef = useRef(onPlaybackUpdate)
   callbackRef.current = onPlaybackUpdate
 
@@ -29,9 +25,9 @@ export default function SpotifyEmbed({ trackId, onPlaybackUpdate }: Props) {
       if (event.origin !== 'https://open.spotify.com') return
 
       try {
-        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
+        const data =
+          typeof event.data === 'string' ? JSON.parse(event.data) : event.data
 
-        // Primary format: { type: "playback_update", payload: { isPaused, position, duration } }
         if (data?.type === 'playback_update' && data.payload) {
           callbackRef.current({
             isPlaying: !data.payload.isPaused,
@@ -40,7 +36,6 @@ export default function SpotifyEmbed({ trackId, onPlaybackUpdate }: Props) {
           return
         }
 
-        // Fallback format: { isPaused, position }
         if (typeof data?.isPaused === 'boolean') {
           callbackRef.current({
             isPlaying: !data.isPaused,
@@ -48,7 +43,7 @@ export default function SpotifyEmbed({ trackId, onPlaybackUpdate }: Props) {
           })
         }
       } catch {
-        // Ignore unparseable messages
+        return
       }
     }
 
@@ -56,20 +51,38 @@ export default function SpotifyEmbed({ trackId, onPlaybackUpdate }: Props) {
     return () => window.removeEventListener('message', handleMessage)
   }, [])
 
-  const embedUrl = `https://open.spotify.com/embed/track/${trackId}`
-
   return (
-    <div className="rounded-xl overflow-hidden shadow-xl">
-      <iframe
-        src={embedUrl}
-        width="100%"
-        height="352"
-        frameBorder="0"
-        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-        loading="lazy"
-        title="Spotify track player"
-        className="block"
-      />
+    <div className="surface-card overflow-hidden p-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-white">Spotify player</p>
+          <p className="text-sm leading-6 text-slate-400">
+            Start playback here to move the SoundSwap timer.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs uppercase tracking-[0.18em] text-slate-500">
+          <HeadphonesIcon className="h-3.5 w-3.5" />
+          Synced session
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-slate-950/70">
+        <iframe
+          src={`https://open.spotify.com/embed/track/${trackId}`}
+          width="100%"
+          height="352"
+          frameBorder="0"
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          loading="lazy"
+          title="Spotify track player"
+          className="block"
+        />
+      </div>
+
+      <div className="mt-4 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
+        <WaveformIcon className="h-3.5 w-3.5" />
+        Forward seeks or pauses reset the timer.
+      </div>
     </div>
   )
 }

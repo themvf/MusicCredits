@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
+import { handleApiError } from '@/lib/api-error'
 import { getAuthenticatedUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+
+export const runtime = 'nodejs'
 
 /**
  * GET /api/tracks/next
@@ -32,11 +35,6 @@ export async function GET() {
 
     return NextResponse.json(track)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    if (message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    console.error('[GET /api/tracks/next]', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return handleApiError(error, 'GET /api/tracks/next')
   }
 }
