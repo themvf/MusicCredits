@@ -142,6 +142,7 @@ export default function PlaylistVerifyWizard({
     markVerifying,
     markVerified,
     markVerifyFailed,
+    setState,
   } = useSessionFlow()
   const [connected, setConnected] = useState(spotifyConnected)
   const [playlists, setPlaylists] = useState<PlaylistOption[]>([])
@@ -304,6 +305,13 @@ export default function PlaylistVerifyWizard({
   function handleSelectPlaylist(playlistId: string) {
     setSelectedPlaylistId(playlistId)
     setVerifyError(null)
+  }
+
+  function handleChooseDifferentPlaylist() {
+    setSnapshot(null)
+    setSelectedPlaylistId('')
+    setVerifyError(null)
+    setState('PLAYLIST_SELECT')
   }
 
   async function handleTakeSnapshot() {
@@ -603,6 +611,13 @@ export default function PlaylistVerifyWizard({
                   )}
                   <button
                     type="button"
+                    onClick={handleChooseDifferentPlaylist}
+                    className="button-secondary w-full"
+                  >
+                    Choose different playlist
+                  </button>
+                  <button
+                    type="button"
                     onClick={handleVerifyAdd}
                     disabled={verifying || verifyCountdownMs > 0}
                     className="button-primary w-full disabled:cursor-not-allowed disabled:opacity-55"
@@ -662,6 +677,13 @@ export default function PlaylistVerifyWizard({
                     className="button-primary w-full"
                   >
                     Try verification again
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleChooseDifferentPlaylist}
+                    className="button-secondary w-full"
+                  >
+                    Choose different playlist
                   </button>
                 </div>
               )}
