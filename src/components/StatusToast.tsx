@@ -30,7 +30,7 @@ export default function StatusToast({
   title,
   description,
   onClose,
-  autoCloseMs = 3600,
+  autoCloseMs = 4000,
 }: StatusToastProps) {
   useEffect(() => {
     if (!open) return

@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { HeadphonesIcon, WaveformIcon } from '@/components/AppIcons'
+import { ArrowUpRightIcon, WaveformIcon } from '@/components/AppIcons'
+import SyncedSessionBadge from '@/components/SyncedSessionBadge'
 
 interface PlaybackState {
   isPlaying: boolean
@@ -97,11 +98,17 @@ function loadSpotifyIframeApi() {
 
 interface SpotifyEmbedProps {
   trackId: string
+  trackTitle: string
+  artistName: string
+  spotifyUrl: string
   onPlaybackUpdate: (state: PlaybackState) => void
 }
 
 export default function SpotifyEmbed({
   trackId,
+  trackTitle,
+  artistName,
+  spotifyUrl,
   onPlaybackUpdate,
 }: SpotifyEmbedProps) {
   const callbackRef = useRef(onPlaybackUpdate)
@@ -195,15 +202,24 @@ export default function SpotifyEmbed({
   return (
     <div className="surface-card overflow-hidden p-4">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-white">Spotify player</p>
-          <p className="text-sm leading-6 text-slate-400">
-            Start playback here to move the SoundSwap timer.
+        <div className="space-y-1">
+          <p className="text-sm uppercase tracking-[0.22em] text-slate-500">
+            Queue track
           </p>
+          <h2 className="text-xl font-semibold text-white">{trackTitle}</h2>
+          <p className="text-sm text-slate-200">{artistName}</p>
         </div>
-        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs uppercase tracking-[0.18em] text-slate-500">
-          <HeadphonesIcon className="h-3.5 w-3.5" />
-          Synced session
+        <div className="flex items-center gap-3">
+          <a
+            href={spotifyUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="button-secondary"
+          >
+            Open in Spotify
+            <ArrowUpRightIcon className="h-4 w-4" />
+          </a>
+          <SyncedSessionBadge />
         </div>
       </div>
 

@@ -1,92 +1,101 @@
-import { Suspense } from 'react'
-import Link from 'next/link'
 import ListenPageClient from '@/components/ListenPageClient'
-import PageHeader from '@/components/PageHeader'
-import StartListeningButton from '@/components/StartListeningButton'
-import { BoltIcon, HeadphonesIcon, ShieldIcon } from '@/components/AppIcons'
+import SessionIntroScreen from '@/components/SessionIntroScreen'
+import { getAuthenticatedUser } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { hydrateTrackMetadata } from '@/lib/track-metadata'
 
 export default async function ListenPage({
   searchParams,
 }: {
-  searchParams: Promise<{ trackId?: string; sessionId?: string }>
+  searchParams: Promise<{
+    trackId?: string
+    sessionId?: string
+    spotify?: string
+  }>
 }) {
-  const { trackId, sessionId } = await searchParams
+  const { trackId, sessionId, spotify } = await searchParams
 
   if (!trackId || !sessionId) {
-    return (
-      <div className="space-y-8">
-        <PageHeader
-          eyebrow="Listen & Earn"
-          title="Start a queued session"
-          description="Jump into the next verified track, listen for 30 focused seconds, and collect a credit when the rating unlocks."
-          actions={<StartListeningButton label="Find a track" />}
-        />
-
-        <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-          <div className="surface-card p-7">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="surface-card-soft p-5">
-                <HeadphonesIcon className="h-5 w-5 text-brand-300" />
-                <p className="mt-4 text-sm font-semibold text-white">
-                  30 total seconds
-                </p>
-                <p className="mt-2 text-sm leading-6 text-slate-400">
-                  Playback time accumulates while the song is actually playing.
-                </p>
-              </div>
-              <div className="surface-card-soft p-5">
-                <ShieldIcon className="h-5 w-5 text-brand-300" />
-                <p className="mt-4 text-sm font-semibold text-white">
-                  Flexible listen flow
-                </p>
-                <p className="mt-2 text-sm leading-6 text-slate-400">
-                  Scrub or pause if you need to. The timer resumes from the time you have already earned.
-                </p>
-              </div>
-              <div className="surface-card-soft p-5">
-                <BoltIcon className="h-5 w-5 text-brand-300" />
-                <p className="mt-4 text-sm font-semibold text-white">
-                  +1 verified credit
-                </p>
-                <p className="mt-2 text-sm leading-6 text-slate-400">
-                  Rate the track once listening is complete and collect the reward.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="surface-card p-7">
-            <p className="text-sm uppercase tracking-[0.22em] text-slate-500">
-              Need more promotion balance?
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold text-white">
-              Listening is the growth engine
-            </h2>
-            <p className="mt-4 text-base leading-7 text-slate-400">
-              Every completed session puts you back in control of the next
-              campaign. Open a queued track whenever you need to rebuild balance.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <StartListeningButton label="Start a session" />
-              <Link href="/dashboard" className="button-secondary">
-                Back to dashboard
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+    return <SessionIntroScreen />
   }
 
+  const user = await getAuthenticatedUser()
+
+  const [session, spotifyAccount, verification] = await Promise.all([
+    prisma.listeningSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        track: true,
+        rating: { select: { id: true } },
+      },
+    }),
+    prisma.spotifyAccount.findUnique({
+      where: { userId: user.id },
+    }),
+    prisma.playlistVerification.findUnique({
+      where: {
+        userId_trackId: {
+          userId: user.id,
+          trackId,
+        },
+      },
+      include: {
+        playlist: true,
+        snapshot: true,
+      },
+    }),
+  ])
+
+  if (
+    !session ||
+    session.userId !== user.id ||
+    session.trackId !== trackId ||
+    !session.track
+  ) {
+    return <SessionIntroScreen />
+  }
+
+  const track = await hydrateTrackMetadata(session.track)
+
   return (
-    <Suspense
-      fallback={
-        <div className="surface-card p-8 text-sm text-slate-400">
-          Loading the listening session...
-        </div>
+    <ListenPageClient
+      trackId={trackId}
+      sessionId={session.id}
+      spotifyTrackId={track.spotifyTrackId}
+      spotifyUrl={track.spotifyUrl}
+      trackTitle={track.title}
+      artistName={track.artistName}
+      initialCredits={user.credits}
+      spotifyConnected={Boolean(spotifyAccount)}
+      callbackStatus={
+        spotify === 'connected' || spotify === 'error' ? spotify : null
       }
-    >
-      <ListenPageClient trackId={trackId} sessionId={sessionId} />
-    </Suspense>
+      sessionCompleted={Boolean(session.rating)}
+      initialVerification={
+        verification
+          ? {
+              id: verification.id,
+              playlistId: verification.playlistId,
+              playlistName: verification.playlist.name,
+              playlistUrl: verification.playlist.spotifyUrl,
+              verified: verification.verified,
+              quality: verification.quality,
+              verificationType: verification.verificationType,
+              verifiedAt: verification.verifiedAt?.toISOString() ?? null,
+              persistenceDueAt:
+                verification.persistenceDueAt?.toISOString() ?? null,
+            }
+          : null
+      }
+      initialSnapshot={
+        verification?.snapshot
+          ? {
+              id: verification.snapshot.id,
+              playlistId: verification.snapshot.playlistId,
+              createdAt: verification.snapshot.createdAt.toISOString(),
+            }
+          : null
+      }
+    />
   )
 }

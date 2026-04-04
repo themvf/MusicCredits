@@ -1,350 +1,372 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
-import FrictionQuestion from '@/components/FrictionQuestion'
-import ListeningTimer from '@/components/ListeningTimer'
-import RatingForm from '@/components/RatingForm'
+import { useEffect, useMemo, useState } from 'react'
+import FeedbackPanel from '@/components/FeedbackPanel'
+import ListenProgressBar from '@/components/ListenProgressBar'
+import PlaylistVerifyWizard, {
+  type VerificationState,
+} from '@/components/PlaylistVerifyWizard'
 import SpotifyEmbed from '@/components/SpotifyEmbed'
+import VerificationSuccessState from '@/components/VerificationSuccessState'
 import {
-  ArrowUpRightIcon,
   BoltIcon,
-  CheckIcon,
   HeadphonesIcon,
-  SparkIcon,
-  WaveformIcon,
+  LockIcon,
+  StarIcon,
+  TracksIcon,
 } from '@/components/AppIcons'
+import { SessionFlowProvider, useSessionFlow, type SessionFlowState } from '@/hooks/useSessionFlow'
 import { useListeningSession } from '@/hooks/useListeningSession'
-import { getSpotifyTrackLabel } from '@/lib/spotify'
+import { extractSpotifyTrackId } from '@/lib/spotify'
+
+interface SnapshotState {
+  id: string
+  playlistId: string
+  createdAt: string
+}
 
 interface ListenPageClientProps {
   trackId: string
   sessionId: string
+  spotifyTrackId: string | null
+  spotifyUrl: string
+  trackTitle: string
+  artistName: string
+  initialCredits: number
+  spotifyConnected: boolean
+  callbackStatus: 'connected' | 'error' | null
+  sessionCompleted: boolean
+  initialSnapshot: SnapshotState | null
+  initialVerification: VerificationState | null
 }
 
-export default function ListenPageClient({
-  trackId,
-  sessionId,
-}: ListenPageClientProps) {
-  const feedbackRef = useRef<HTMLDivElement | null>(null)
-  const eligibleAtRef = useRef<number | null>(null)
-
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [selectedVibe, setSelectedVibe] = useState<string | null>(null)
-  const [showVibeReward, setShowVibeReward] = useState(false)
-  const [timeToVibeMs, setTimeToVibeMs] = useState<number | null>(null)
-  const [fetchError, setFetchError] = useState<string | null>(null)
-  const [spotifyTrackId, setSpotifyTrackId] = useState<string | null>(null)
-  const [spotifyUrl, setSpotifyUrl] = useState<string | null>(null)
-  const [trackTitle, setTrackTitle] = useState<string | null>(null)
-  const [artistName, setArtistName] = useState<string | null>(null)
-  const [earnedCredit, setEarnedCredit] = useState(false)
-  const [newCredits, setNewCredits] = useState<number | null>(null)
-
-  const { displayMs, isEligible, interruptionsCount } = useListeningSession(isPlaying)
-
-  useEffect(() => {
-    if (isEligible && eligibleAtRef.current === null) {
-      eligibleAtRef.current = Date.now()
-    }
-
-    if (!isEligible) {
-      eligibleAtRef.current = null
-      setSelectedVibe(null)
-      setShowVibeReward(false)
-      setTimeToVibeMs(null)
-    }
-  }, [isEligible])
-
-  const handlePlaybackUpdate = useCallback(
-    ({ isPlaying: playing }: { isPlaying: boolean; position: number }) => {
-      setIsPlaying(playing)
-    },
-    []
-  )
-
-  useEffect(() => {
-    async function loadTrack() {
-      try {
-        const res = await fetch(`/api/tracks/${trackId}`)
-
-        if (!res.ok) {
-          setFetchError('Track not found in the queue.')
-          return
-        }
-
-        const data = await res.json()
-        const match = data.spotifyUrl?.match(
-          /https:\/\/open\.spotify\.com\/track\/([A-Za-z0-9]{22})/
-        )
-
-        if (match) {
-          setSpotifyTrackId(match[1])
-          setSpotifyUrl(data.spotifyUrl)
-          setTrackTitle(data.title ?? getSpotifyTrackLabel(data.spotifyUrl))
-          setArtistName(data.artistName ?? 'Unknown artist')
-        } else {
-          setFetchError('The stored Spotify URL is invalid.')
-        }
-      } catch {
-        setFetchError('Failed to load track details.')
-      }
-    }
-
-    loadTrack()
-  }, [trackId])
-
-  function handleVibeSelect(vibe: string) {
-    const elapsed = eligibleAtRef.current ? Date.now() - eligibleAtRef.current : null
-    setTimeToVibeMs(elapsed)
-    setSelectedVibe(vibe)
-    setShowVibeReward(true)
-    window.setTimeout(() => setShowVibeReward(false), 1400)
+function getInitialFlowState({
+  sessionCompleted,
+  initialSnapshot,
+  initialVerification,
+}: Pick<
+  ListenPageClientProps,
+  'sessionCompleted' | 'initialSnapshot' | 'initialVerification'
+>): SessionFlowState {
+  if (initialVerification?.verified && initialVerification.quality === 'verified') {
+    return 'VERIFIED'
   }
 
-  function handleRatingSuccess(credits: number) {
-    setEarnedCredit(true)
+  if (
+    initialVerification?.quality === 'failed' ||
+    initialVerification?.quality === 'low_quality'
+  ) {
+    return 'VERIFY_FAILED'
+  }
+
+  if (initialSnapshot) {
+    return 'AWAITING_USER_ADD'
+  }
+
+  if (sessionCompleted) {
+    return 'PLAYLIST_SELECT'
+  }
+
+  return 'LISTENING'
+}
+
+function LockedFeedbackPanel() {
+  return (
+    <div className="surface-card p-6">
+      <div className="flex items-center gap-3">
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-slate-400">
+          <LockIcon className="h-4 w-4" />
+        </span>
+        <div>
+          <p className="text-sm uppercase tracking-[0.22em] text-slate-500">
+            Waiting for unlock
+          </p>
+          <h3 className="mt-2 text-2xl font-semibold text-white">
+            Feedback activates after 30 seconds
+          </h3>
+        </div>
+      </div>
+
+      <p className="mt-4 text-sm leading-6 text-slate-400">
+        Finish 30 real seconds of Spotify playback to unlock the vibe chips,
+        star rating, and playlist step.
+      </p>
+
+      <div className="mt-6 flex flex-wrap gap-2">
+        {['Energetic', 'Chill', 'Emotional', 'Hype', 'Unique'].map((label) => (
+          <span
+            key={label}
+            className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 text-sm font-medium text-slate-500 opacity-35"
+          >
+            {label}
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-6 flex gap-2">
+        {Array.from({ length: 5 }, (_, index) => (
+          <span
+            key={index}
+            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] opacity-35"
+          >
+            <StarIcon className="h-4 w-4 text-slate-600" />
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ListeningSessionSurface({
+  trackId,
+  sessionId,
+  spotifyTrackId,
+  spotifyUrl,
+  trackTitle,
+  artistName,
+  initialCredits,
+  spotifyConnected,
+  callbackStatus,
+  sessionCompleted,
+  initialSnapshot,
+  initialVerification,
+}: ListenPageClientProps) {
+  const { state, markUnlocked } = useSessionFlow()
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [isDesktop, setIsDesktop] = useState<boolean>(() =>
+    typeof window === 'undefined' ? true : window.innerWidth >= 1024
+  )
+  const [wizardSheetOpen, setWizardSheetOpen] = useState(false)
+  const [newCredits, setNewCredits] = useState<number | null>(
+    sessionCompleted ? initialCredits : null
+  )
+  const [verification, setVerification] = useState<VerificationState | null>(
+    initialVerification
+  )
+  const { displayMs, isEligible, interruptionsCount } = useListeningSession(isPlaying)
+
+  const resolvedSpotifyTrackId =
+    spotifyTrackId ?? extractSpotifyTrackId(spotifyUrl)
+
+  const connectUrl = `/api/spotify/login?returnTo=${encodeURIComponent(
+    `/listen?trackId=${trackId}&sessionId=${sessionId}`
+  )}`
+
+  const showFeedbackPanel = state === 'FEEDBACK_PENDING'
+  const showWizard =
+    state === 'PLAYLIST_SELECT' ||
+    state === 'SNAPSHOT_TAKEN' ||
+    state === 'AWAITING_USER_ADD' ||
+    state === 'VERIFYING' ||
+    state === 'VERIFY_FAILED'
+  const showVerifiedState = state === 'VERIFIED' && verification
+
+  useEffect(() => {
+    function handleResize() {
+      setIsDesktop(window.innerWidth >= 1024)
+    }
+
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  useEffect(() => {
+    if (
+      isEligible &&
+      !sessionCompleted &&
+      state === 'LISTENING'
+    ) {
+      markUnlocked()
+    }
+  }, [isEligible, markUnlocked, sessionCompleted, state])
+
+  useEffect(() => {
+    if (showWizard && !isDesktop) {
+      setWizardSheetOpen(true)
+    }
+  }, [isDesktop, showWizard])
+
+  function handlePlaybackUpdate({
+    isPlaying: playing,
+  }: {
+    isPlaying: boolean
+    position: number
+  }) {
+    setIsPlaying(playing)
+  }
+
+  function handleFeedbackSuccess(credits: number) {
     setNewCredits(credits)
   }
 
-  function scrollToFeedback() {
-    feedbackRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  function handleVerified(nextVerification: VerificationState) {
+    setVerification(nextVerification)
+    setWizardSheetOpen(false)
   }
 
-  if (earnedCredit) {
-    return (
-      <div className="surface-card mx-auto max-w-3xl p-10 text-center">
-        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-brand-400/20 bg-brand-500/12 text-brand-300">
-          <CheckIcon className="h-8 w-8" />
-        </div>
-        <h1 className="mt-6 text-4xl font-semibold tracking-tight text-white">
-          Credit earned
-        </h1>
-        <p className="mt-3 text-base leading-7 text-slate-400">
-          The session is complete and your balance has been updated.
-        </p>
-        <div className="mx-auto mt-8 max-w-sm rounded-[1.5rem] border border-white/10 bg-slate-950/70 p-6">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-            New balance
-          </p>
-          <p className="mt-3 text-4xl font-semibold text-white">{newCredits}</p>
-        </div>
-
-        <div className="mt-8 grid gap-3 sm:grid-cols-2">
-          <Link
-            href={`/playlist-verify?trackId=${trackId}`}
-            className="button-primary justify-center"
-          >
-            Add to Playlist
-          </Link>
-          <Link href="/dashboard" className="button-secondary justify-center">
-            Back to dashboard
-          </Link>
-        </div>
-
-        <p className="mt-4 text-sm leading-6 text-slate-400">
-          Playlist verification uses live Spotify playlist snapshots to confirm
-          the add after your listening session is complete.
-        </p>
-      </div>
-    )
-  }
-
-  if (fetchError) {
-    return (
-      <div className="surface-card p-8 text-center">
-        <p className="text-lg font-semibold text-white">{fetchError}</p>
-        <p className="mt-2 text-sm text-slate-400">
-          Return to the dashboard and start another queued session.
-        </p>
-      </div>
-    )
-  }
-
-  if (!spotifyTrackId || !spotifyUrl) {
+  if (!resolvedSpotifyTrackId) {
     return (
       <div className="surface-card p-8 text-sm text-slate-400">
-        Loading the next queued track...
+        The stored Spotify URL is invalid. Start another session from the queue.
       </div>
     )
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-        <div className="space-y-3">
-          <span className="eyebrow-badge">
-            <HeadphonesIcon className="h-4 w-4" />
-            Listening session
-          </span>
-          <div className="space-y-2">
-            <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-              Listen and earn
-            </h1>
-            <p className="max-w-3xl text-base leading-7 text-slate-400">
-              Accumulate 30 total seconds of playback to unlock your rating and
-              move into the playlist step.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="surface-card-soft p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-              Progress
-            </p>
-            <p className="mt-3 text-2xl font-semibold text-white">
-              {Math.min(Math.floor(displayMs / 1000), 30)}s
-            </p>
-          </div>
-          <div className="surface-card-soft p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-              Interruptions
-            </p>
-            <p className="mt-3 text-2xl font-semibold text-white">
-              {interruptionsCount}
-            </p>
-          </div>
-          <div className="surface-card-soft p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-              Reward
-            </p>
-            <p className="mt-3 text-2xl font-semibold text-white">+1</p>
-          </div>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4">
+        <span className="eyebrow-badge">
+          <HeadphonesIcon className="h-4 w-4" />
+          Listen &amp; Earn
+        </span>
+        <div className="max-w-3xl space-y-3">
+          <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+            One session. One feedback step. One verification flow.
+          </h1>
+          <p className="text-base leading-7 text-slate-400">
+            Keep listening inside Spotify, unlock feedback at 30 seconds, and
+            move straight into playlist verification without leaving this page.
+          </p>
         </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="space-y-6">
-          <div className="surface-card p-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="space-y-3">
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-500">
-                  <WaveformIcon className="h-3.5 w-3.5" />
-                  Queue track
-                </span>
-                <div>
-                  <h2 className="text-2xl font-semibold text-white">
-                    {trackTitle ?? getSpotifyTrackLabel(spotifyUrl)}
-                  </h2>
-                  <p className="mt-2 text-sm text-slate-400">
-                    {artistName ?? 'Unknown artist'}
-                  </p>
-                </div>
-              </div>
-
-              <a
-                href={spotifyUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="button-secondary"
-              >
-                Open in Spotify
-                <ArrowUpRightIcon className="h-4 w-4" />
-              </a>
-            </div>
-          </div>
-
+        <div className="space-y-5">
           <SpotifyEmbed
-            trackId={spotifyTrackId}
+            trackId={resolvedSpotifyTrackId}
+            trackTitle={trackTitle}
+            artistName={artistName}
+            spotifyUrl={spotifyUrl}
             onPlaybackUpdate={handlePlaybackUpdate}
           />
 
-          <ListeningTimer
-            isPlaying={isPlaying}
-            displayMs={displayMs}
-            isEligible={isEligible}
-            addToPlaylistUrl={spotifyUrl}
-            onAdvance={scrollToFeedback}
-          />
-        </div>
-
-        <div ref={feedbackRef} className="space-y-4">
-          <div className="surface-card-soft p-5">
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-brand-300">
-                <BoltIcon className="h-4 w-4" />
-              </span>
-              <div>
-                <p className="text-sm font-medium text-white">Session rules</p>
-                <p className="text-sm text-slate-400">
-                  Total play time counts across pauses and scrubbing. Progress
-                  only moves while audio is actively playing on this page.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {isEligible && !selectedVibe && !showVibeReward && (
-            <FrictionQuestion onSelect={handleVibeSelect} />
+          {!sessionCompleted && (
+            <ListenProgressBar currentMs={displayMs} />
           )}
 
-          {showVibeReward && (
-            <div className="surface-card p-6">
-              <div className="flex items-center gap-3">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-400/20 bg-brand-500/12 text-brand-300">
-                  <SparkIcon className="h-5 w-5" />
+          {showWizard && !isDesktop && (
+            <div className="surface-card p-5">
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-brand-300">
+                  <TracksIcon className="h-5 w-5" />
                 </span>
                 <div>
-                  <p className="text-lg font-semibold text-white">
-                    Rating unlocked
+                  <p className="text-sm font-medium text-white">
+                    Playlist verification is ready
                   </p>
-                  <p className="text-sm leading-6 text-slate-400">
-                    Your listen is verified. Submit the rating to collect the credit.
+                  <p className="mt-1 text-sm leading-6 text-slate-400">
+                    Continue the step-by-step add verification flow in a focused
+                    bottom sheet.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setWizardSheetOpen(true)}
+                className="button-primary mt-5 w-full"
+              >
+                Verify Playlist Add
+              </button>
+            </div>
+          )}
+
+          {!sessionCompleted && (
+            <div className="surface-card-soft p-5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-brand-300">
+                  <BoltIcon className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-medium text-white">Session flow</p>
+                  <p className="text-sm text-slate-400">
+                    Progress only moves while Spotify is actively playing in this
+                    tab. Once you hit 30 seconds, the feedback panel opens
+                    automatically.
                   </p>
                 </div>
               </div>
             </div>
           )}
+        </div>
 
-          {isEligible && selectedVibe && !showVibeReward && (
-            <RatingForm
-              sessionId={sessionId}
-              isEligible={isEligible}
-              accumulatedMs={displayMs}
-              vibe={selectedVibe}
-              resetsCount={interruptionsCount}
-              timeToVibeMs={timeToVibeMs}
-              onSuccess={handleRatingSuccess}
+        <div className="space-y-5">
+          {showVerifiedState ? (
+            <VerificationSuccessState
+              verificationId={verification.id}
+              playlistName={verification.playlistName}
+              verifiedAt={verification.verifiedAt}
+              persistenceDueAt={verification.persistenceDueAt}
+              newCredits={newCredits ?? initialCredits}
             />
-          )}
-
-          {!isEligible && (
-            <div className="surface-card p-6">
-              <p className="text-sm uppercase tracking-[0.22em] text-slate-500">
-                Waiting for unlock
-              </p>
-              <h3 className="mt-2 text-2xl font-semibold text-white">
-                Feedback activates after 30 seconds
-              </h3>
-              <p className="mt-3 text-sm leading-6 text-slate-400">
-                Once the timer completes, the vibe prompt and rating step will
-                appear here automatically.
-              </p>
-
-              <div className="mt-6 grid grid-cols-5 gap-3">
-                {Array.from({ length: 5 }, (_, index) => (
-                  <div
-                    key={index}
-                    className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-4"
-                  >
-                    <svg
-                      aria-hidden="true"
-                      viewBox="0 0 24 24"
-                      className="mx-auto h-7 w-7 text-slate-700"
-                    >
-                      <path
-                        d="m12 3 2.7 5.6 6.2.9-4.5 4.4 1 6.1-5.4-2.9-5.6 2.9 1.1-6.1L3 9.5l6.3-.9L12 3Z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </div>
-                ))}
-              </div>
-            </div>
+          ) : showFeedbackPanel ? (
+            <FeedbackPanel
+              sessionId={sessionId}
+              accumulatedMs={displayMs}
+              resetsCount={interruptionsCount}
+              onSuccess={handleFeedbackSuccess}
+            />
+          ) : showWizard && isDesktop ? (
+            <PlaylistVerifyWizard
+              trackId={trackId}
+              trackTitle={trackTitle}
+              artistName={artistName}
+              connectUrl={connectUrl}
+              spotifyConnected={spotifyConnected}
+              callbackStatus={callbackStatus}
+              initialSnapshot={initialSnapshot}
+              initialVerification={verification}
+              onVerified={handleVerified}
+            />
+          ) : (
+            <LockedFeedbackPanel />
           )}
         </div>
       </div>
+
+      {!isDesktop && wizardSheetOpen && showWizard && (
+        <div className="fixed inset-0 z-[90] lg:hidden">
+          <button
+            type="button"
+            aria-label="Close verification sheet"
+            onClick={() => setWizardSheetOpen(false)}
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+          />
+          <div className="animate-slide-up-sheet absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-[2rem] border border-white/10 bg-[#0b1220] p-4 shadow-[0_-25px_70px_-35px_rgba(15,23,42,0.95)]">
+            <div className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-white/10" />
+            <PlaylistVerifyWizard
+              trackId={trackId}
+              trackTitle={trackTitle}
+              artistName={artistName}
+              connectUrl={connectUrl}
+              spotifyConnected={spotifyConnected}
+              callbackStatus={callbackStatus}
+              initialSnapshot={initialSnapshot}
+              initialVerification={verification}
+              onVerified={handleVerified}
+            />
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+export default function ListenPageClient(props: ListenPageClientProps) {
+  const initialFlowState = useMemo(
+    () =>
+      getInitialFlowState({
+        sessionCompleted: props.sessionCompleted,
+        initialSnapshot: props.initialSnapshot,
+        initialVerification: props.initialVerification,
+      }),
+    [props.initialSnapshot, props.initialVerification, props.sessionCompleted]
+  )
+
+  return (
+    <SessionFlowProvider initialState={initialFlowState}>
+      <ListeningSessionSurface {...props} />
+    </SessionFlowProvider>
   )
 }

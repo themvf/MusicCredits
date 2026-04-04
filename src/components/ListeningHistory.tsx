@@ -46,7 +46,7 @@ export default function ListeningHistory({
               <p className="truncate text-base font-semibold text-white">
                 {session.title}
               </p>
-              <p className="mt-1 truncate text-sm text-slate-400">
+              <p className="mt-1 truncate text-sm text-slate-200">
                 {session.artistName}
               </p>
             </div>

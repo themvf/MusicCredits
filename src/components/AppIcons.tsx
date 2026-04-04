@@ -202,3 +202,22 @@ export function XIcon({ className }: IconProps) {
     </IconFrame>
   )
 }
+
+export function LockIcon({ className }: IconProps) {
+  return (
+    <IconFrame className={className}>
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V8.5A4 4 0 0 1 12 4.5a4 4 0 0 1 4 4V11" />
+    </IconFrame>
+  )
+}
+
+export function InfoIcon({ className }: IconProps) {
+  return (
+    <IconFrame className={className}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 10v5" />
+      <path d="M12 7.2h.01" />
+    </IconFrame>
+  )
+}

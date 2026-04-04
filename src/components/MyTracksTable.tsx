@@ -80,7 +80,7 @@ export default function MyTracksTable({ tracks }: MyTracksTableProps) {
                     <p className="truncate text-base font-semibold text-white">
                       {track.title}
                     </p>
-                    <p className="mt-1 truncate text-sm text-slate-400">
+                    <p className="mt-1 truncate text-sm text-slate-200">
                       {track.artistName}
                     </p>
                   </div>
