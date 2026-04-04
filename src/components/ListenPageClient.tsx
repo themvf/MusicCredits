@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import FrictionQuestion from '@/components/FrictionQuestion'
 import ListeningTimer from '@/components/ListeningTimer'
 import RatingForm from '@/components/RatingForm'
@@ -31,7 +31,6 @@ export default function ListenPageClient({
   trackId,
   sessionId,
 }: ListenPageClientProps) {
-  const router = useRouter()
   const feedbackRef = useRef<HTMLDivElement | null>(null)
   const prevPositionRef = useRef<number | null>(null)
   const eligibleAtRef = useRef<number | null>(null)
@@ -117,10 +116,6 @@ export default function ListenPageClient({
   function handleRatingSuccess(credits: number) {
     setEarnedCredit(true)
     setNewCredits(credits)
-    window.setTimeout(() => {
-      router.push('/dashboard')
-      router.refresh()
-    }, 1800)
   }
 
   function scrollToFeedback() {
@@ -145,6 +140,23 @@ export default function ListenPageClient({
           </p>
           <p className="mt-3 text-4xl font-semibold text-white">{newCredits}</p>
         </div>
+
+        <div className="mt-8 grid gap-3 sm:grid-cols-2">
+          <Link
+            href={`/playlist-verify?trackId=${trackId}`}
+            className="button-primary justify-center"
+          >
+            Verify Playlist Add
+          </Link>
+          <Link href="/dashboard" className="button-secondary justify-center">
+            Back to dashboard
+          </Link>
+        </div>
+
+        <p className="mt-4 text-sm leading-6 text-slate-400">
+          Playlist verification uses live Spotify playlist snapshots to confirm
+          the add after your listening session is complete.
+        </p>
       </div>
     )
   }

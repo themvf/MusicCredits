@@ -10,12 +10,20 @@
 export const SPOTIFY_TRACK_URL_REGEX =
   /^https:\/\/open\.spotify\.com\/track\/([A-Za-z0-9]{22})/
 
+export const SPOTIFY_PLAYLIST_URL_REGEX =
+  /^https:\/\/open\.spotify\.com\/playlist\/([A-Za-z0-9]{22})/
+
 /**
  * Returns the 22-character Spotify track ID from a full track URL.
  * Returns null if the URL does not match the expected format.
  */
 export function extractSpotifyTrackId(url: string): string | null {
   const match = url.match(SPOTIFY_TRACK_URL_REGEX)
+  return match ? match[1] : null
+}
+
+export function extractSpotifyPlaylistId(url: string): string | null {
+  const match = url.match(SPOTIFY_PLAYLIST_URL_REGEX)
   return match ? match[1] : null
 }
 
@@ -27,6 +35,16 @@ export function getEmbedUrl(spotifyUrl: string): string | null {
   const trackId = extractSpotifyTrackId(spotifyUrl)
   if (!trackId) return null
   return `https://open.spotify.com/embed/track/${trackId}`
+}
+
+export function getSpotifyTrackOpenUrl(spotifyUrl: string): string | null {
+  const trackId = extractSpotifyTrackId(spotifyUrl)
+  return trackId ? `https://open.spotify.com/track/${trackId}` : null
+}
+
+export function getSpotifyTrackUri(spotifyUrl: string): string | null {
+  const trackId = extractSpotifyTrackId(spotifyUrl)
+  return trackId ? `spotify:track:${trackId}` : null
 }
 
 export function getSpotifyTrackReference(spotifyUrl: string): string {

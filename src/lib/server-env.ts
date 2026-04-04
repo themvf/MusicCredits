@@ -5,6 +5,9 @@ import { z } from 'zod'
 const serverEnvSchema = z.object({
   DATABASE_URL: z.string().url('DATABASE_URL must be a valid Neon/Postgres URL'),
   CLERK_SECRET_KEY: z.string().min(1, 'CLERK_SECRET_KEY is required'),
+  SPOTIFY_CLIENT_ID: z.string().min(1, 'SPOTIFY_CLIENT_ID is required'),
+  SPOTIFY_CLIENT_SECRET: z.string().min(1, 'SPOTIFY_CLIENT_SECRET is required'),
+  SPOTIFY_REDIRECT_URI: z.string().url('SPOTIFY_REDIRECT_URI must be a valid URL'),
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z
     .string()
     .min(1, 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is required'),
@@ -20,11 +23,15 @@ const serverEnvSchema = z.object({
   NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: z
     .string()
     .min(1, 'NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL is required'),
+  SPOTIFY_PLATFORM_REFRESH_TOKEN: z.string().min(1).optional(),
 })
 
 const parsedEnv = serverEnvSchema.safeParse({
   DATABASE_URL: process.env.DATABASE_URL,
   CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
+  SPOTIFY_CLIENT_ID: process.env.SPOTIFY_CLIENT_ID,
+  SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET,
+  SPOTIFY_REDIRECT_URI: process.env.SPOTIFY_REDIRECT_URI,
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
   NEXT_PUBLIC_CLERK_SIGN_IN_URL: process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL,
@@ -33,6 +40,7 @@ const parsedEnv = serverEnvSchema.safeParse({
     process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL,
   NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL:
     process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL,
+  SPOTIFY_PLATFORM_REFRESH_TOKEN: process.env.SPOTIFY_PLATFORM_REFRESH_TOKEN,
 })
 
 if (!parsedEnv.success) {

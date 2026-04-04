@@ -1,4 +1,3 @@
-// Prisma schema for the music listening exchange platform
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,24 +8,30 @@ datasource db {
 }
 
 model User {
-  id         String  @id @default(cuid())
-  clerkId    String  @unique
-  credits    Int     @default(10)
-  // Reputation foundation — updated after each completed session
-  trustScore Float   @default(1.0)
-  tracks     Track[]
-  sessions   ListeningSession[]
-  listenEvents ListenEvent[]
+  id                    String                 @id @default(cuid())
+  clerkId               String                 @unique
+  credits               Int                    @default(10)
+  // Reputation foundation â€” updated after each completed session
+  trustScore            Float                  @default(1.0)
+  tracks                Track[]
+  sessions              ListeningSession[]
+  listenEvents          ListenEvent[]
+  spotifyAccount        SpotifyAccount?
+  playlists             Playlist[]
+  playlistSnapshots     PlaylistSnapshot[]
+  playlistVerifications PlaylistVerification[]
 }
 
 model Track {
-  id         String   @id @default(cuid())
-  userId     String
-  spotifyUrl String
-  createdAt  DateTime @default(now())
-  user       User     @relation(fields: [userId], references: [id])
+  id                    String                 @id @default(cuid())
+  userId                String
+  spotifyUrl            String
+  createdAt             DateTime               @default(now())
+  user                  User                   @relation(fields: [userId], references: [id])
   // Cascade: deleting a track removes all its sessions (and their ratings)
-  sessions   ListeningSession[] @relation("TrackSessions")
+  sessions              ListeningSession[]     @relation("TrackSessions")
+  playlistSnapshots     PlaylistSnapshot[]
+  playlistVerifications PlaylistVerification[]
 }
 
 model ListeningSession {
@@ -46,16 +51,16 @@ model ListeningSession {
   @@unique([userId, trackId])
 }
 
-// Behavioral log — one record per session, written atomically with rating
+// Behavioral log â€” one record per session, written atomically with rating
 // Powers anti-gaming detection and future reputation scoring
 model ListenEvent {
-  id               String    @id @default(cuid())
-  sessionId        String    @unique
+  id               String           @id @default(cuid())
+  sessionId        String           @unique
   userId           String
-  resetsCount      Int       @default(0)  // How many times the timer reset (pauses + seeks + tab switches)
-  listenDurationMs Int       @default(0)  // Final timer value at submission
-  timeToVibeMs     Int?                   // ms between eligibility and vibe selection (null = didn't use vibe)
-  createdAt        DateTime  @default(now())
+  resetsCount      Int              @default(0)
+  listenDurationMs Int              @default(0)
+  timeToVibeMs     Int?
+  createdAt        DateTime         @default(now())
   // Cascade with session
   session          ListeningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   user             User             @relation(fields: [userId], references: [id])
@@ -67,8 +72,88 @@ model Rating {
   id        String           @id @default(cuid())
   sessionId String           @unique
   score     Int
-  vibe      String?          // Optional: vibe tag selected by user before rating (anti-gaming friction)
+  vibe      String?
   createdAt DateTime         @default(now())
   // Cascade: deleting a session removes its rating
   session   ListeningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model SpotifyAccount {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  spotifyUserId String   @unique
+  accessToken   String
+  refreshToken  String
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Playlist {
+  id                String                 @id @default(cuid())
+  userId            String
+  spotifyPlaylistId String
+  spotifyUrl        String?
+  name              String
+  followers         Int                    @default(0)
+  trackCount        Int                    @default(0)
+  lastSyncedAt      DateTime
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshots         PlaylistSnapshot[]
+  verifications     PlaylistVerification[]
+
+  @@unique([userId, spotifyPlaylistId])
+  @@index([userId, lastSyncedAt])
+}
+
+enum PlaylistSnapshotType {
+  before
+}
+
+model PlaylistSnapshot {
+  id            String                 @id @default(cuid())
+  userId        String
+  playlistId    String
+  trackId       String
+  snapshotType  PlaylistSnapshotType   @default(before)
+  trackIds      Json
+  createdAt     DateTime               @default(now())
+  user          User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playlist      Playlist               @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  track         Track                  @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  verifications PlaylistVerification[]
+
+  @@index([userId, trackId, createdAt])
+  @@index([playlistId, createdAt])
+}
+
+enum PlaylistVerificationQuality {
+  pending
+  verified
+  failed
+  low_quality
+}
+
+model PlaylistVerification {
+  id            String                      @id @default(cuid())
+  userId        String
+  trackId       String
+  playlistId    String
+  snapshotId    String?
+  verified      Boolean                     @default(false)
+  quality       PlaylistVerificationQuality @default(pending)
+  verifiedAt    DateTime?
+  lastCheckedAt DateTime?
+  createdAt     DateTime                    @default(now())
+  updatedAt     DateTime                    @updatedAt
+  user          User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track         Track                       @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  playlist      Playlist                    @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  snapshot      PlaylistSnapshot?           @relation(fields: [snapshotId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, trackId])
+  @@index([playlistId, verified])
 }

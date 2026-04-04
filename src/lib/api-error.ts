@@ -1,5 +1,16 @@
 import { Prisma } from '@prisma/client'
 import { NextResponse } from 'next/server'
+import { ZodError } from 'zod'
+
+export class ApiRouteError extends Error {
+  constructor(
+    public status: number,
+    message: string
+  ) {
+    super(message)
+    this.name = 'ApiRouteError'
+  }
+}
 
 export function jsonError(status: number, error: string) {
   return NextResponse.json({ error }, { status })
@@ -10,6 +21,14 @@ export function handleApiError(error: unknown, context: string) {
 
   if (message === 'Unauthorized') {
     return jsonError(401, 'Unauthorized')
+  }
+
+  if (error instanceof ApiRouteError) {
+    return jsonError(error.status, error.message)
+  }
+
+  if (error instanceof ZodError) {
+    return jsonError(400, error.issues[0]?.message ?? 'Invalid request body')
   }
 
   if (error instanceof SyntaxError) {
