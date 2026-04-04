@@ -5,14 +5,14 @@ import { useRouter } from 'next/navigation'
 import RatingStars from '@/components/RatingStars'
 import StatusToast from '@/components/StatusToast'
 import { ArrowUpRightIcon, TrashIcon } from '@/components/AppIcons'
-import {
-  getSpotifyTrackLabel,
-  getSpotifyTrackReference,
-} from '@/lib/spotify'
 
 interface Track {
   id: string
   spotifyUrl: string
+  spotifyTrackId: string | null
+  title: string
+  artistName: string
+  artworkUrl: string | null
   createdAt: string
   listenCount: number
   averageRating: number | null
@@ -78,10 +78,10 @@ export default function MyTracksTable({ tracks }: MyTracksTableProps) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-base font-semibold text-white">
-                      {getSpotifyTrackLabel(track.spotifyUrl)}
+                      {track.title}
                     </p>
                     <p className="mt-1 truncate text-sm text-slate-400">
-                      {getSpotifyTrackReference(track.spotifyUrl)}
+                      {track.artistName}
                     </p>
                   </div>
                   <a

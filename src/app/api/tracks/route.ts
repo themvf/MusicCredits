@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { handleApiError } from '@/lib/api-error'
 import { getAuthenticatedUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { fetchSpotifyTrackMetadataByUrl } from '@/lib/spotify-api'
 
 export const runtime = 'nodejs'
 
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { spotifyUrl } = parsed.data
+    const metadata = await fetchSpotifyTrackMetadataByUrl(spotifyUrl.trim())
 
     // Credit check before any write
     if (user.credits < 10) {
@@ -47,7 +49,11 @@ export async function POST(req: NextRequest) {
       prisma.track.create({
         data: {
           userId: user.id,
-          spotifyUrl: spotifyUrl.trim(),
+          spotifyUrl: metadata.spotifyUrl,
+          spotifyTrackId: metadata.spotifyTrackId,
+          title: metadata.title,
+          artistName: metadata.artistName,
+          artworkUrl: metadata.artworkUrl,
         },
       }),
       prisma.user.update({

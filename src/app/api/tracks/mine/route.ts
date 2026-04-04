@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { handleApiError } from '@/lib/api-error'
 import { getAuthenticatedUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { hydrateTrackMetadataList } from '@/lib/track-metadata'
 
 export const runtime = 'nodejs'
 
@@ -27,8 +28,10 @@ export async function GET() {
       },
     })
 
+    const hydratedTracks = await hydrateTrackMetadataList(tracks)
+
     // Compute stats per track
-    const enriched = tracks.map((track) => {
+    const enriched = hydratedTracks.map((track) => {
       const completedSessions = track.sessions
       const ratings = completedSessions
         .map((s) => s.rating?.score)
@@ -42,6 +45,10 @@ export async function GET() {
       return {
         id: track.id,
         spotifyUrl: track.spotifyUrl,
+        spotifyTrackId: track.spotifyTrackId,
+        title: track.title,
+        artistName: track.artistName,
+        artworkUrl: track.artworkUrl,
         createdAt: track.createdAt,
         listenCount: completedSessions.length,
         averageRating,

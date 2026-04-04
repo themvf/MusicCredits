@@ -26,12 +26,18 @@ model Track {
   id                    String                 @id @default(cuid())
   userId                String
   spotifyUrl            String
+  spotifyTrackId        String?
+  title                 String?
+  artistName            String?
+  artworkUrl            String?
   createdAt             DateTime               @default(now())
   user                  User                   @relation(fields: [userId], references: [id])
   // Cascade: deleting a track removes all its sessions (and their ratings)
   sessions              ListeningSession[]     @relation("TrackSessions")
   playlistSnapshots     PlaylistSnapshot[]
   playlistVerifications PlaylistVerification[]
+
+  @@index([spotifyTrackId])
 }
 
 model ListeningSession {

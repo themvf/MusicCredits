@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { handleApiError } from '@/lib/api-error'
 import { getAuthenticatedUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { hydrateTrackMetadataList } from '@/lib/track-metadata'
 
 export const runtime = 'nodejs'
 
@@ -19,18 +20,43 @@ export async function GET() {
       where: { userId: user.id, completed: true },
       orderBy: { startedAt: 'desc' },
       include: {
-        track: { select: { spotifyUrl: true } },
+        track: {
+          select: {
+            id: true,
+            spotifyUrl: true,
+            spotifyTrackId: true,
+            title: true,
+            artistName: true,
+            artworkUrl: true,
+          },
+        },
         rating: { select: { score: true } },
       },
     })
 
-    const history = sessions.map((s) => ({
-      sessionId: s.id,
-      trackId: s.trackId,
-      spotifyUrl: s.track.spotifyUrl,
-      completedAt: s.startedAt,
-      score: s.rating?.score ?? null,
-    }))
+    const hydratedTracks = await hydrateTrackMetadataList(
+      sessions.map((session) => session.track)
+    )
+    const trackById = new Map(
+      hydratedTracks.map((track) => [track.id, track] as const)
+    )
+
+    const history = sessions.map((session) => {
+      const track = trackById.get(session.trackId)
+
+      return {
+        sessionId: session.id,
+        trackId: session.trackId,
+        spotifyUrl: track?.spotifyUrl ?? session.track.spotifyUrl,
+        spotifyTrackId: track?.spotifyTrackId ?? session.track.spotifyTrackId,
+        title: track?.title ?? session.track.title ?? 'Spotify Track',
+        artistName:
+          track?.artistName ?? session.track.artistName ?? 'Unknown artist',
+        artworkUrl: track?.artworkUrl ?? session.track.artworkUrl,
+        completedAt: session.startedAt,
+        score: session.rating?.score ?? null,
+      }
+    })
 
     return NextResponse.json(history)
   } catch (error) {

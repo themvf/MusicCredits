@@ -4,6 +4,7 @@ import PlaylistVerificationCard from '@/components/PlaylistVerificationCard'
 import { ArrowUpRightIcon, CheckIcon, TracksIcon } from '@/components/AppIcons'
 import { getAuthenticatedUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { hydrateTrackMetadata } from '@/lib/track-metadata'
 
 export default async function PlaylistVerifyPage({
   searchParams,
@@ -98,6 +99,8 @@ export default async function PlaylistVerifyPage({
     )
   }
 
+  const trackMetadata = await hydrateTrackMetadata(track)
+
   const canVerify =
     Boolean(session?.completed) && (session?.activeListenTimeMs ?? 0) >= 30_000
 
@@ -154,7 +157,9 @@ export default async function PlaylistVerifyPage({
 
       <PlaylistVerificationCard
         trackId={track.id}
-        spotifyUrl={track.spotifyUrl}
+        spotifyUrl={trackMetadata.spotifyUrl}
+        trackTitle={trackMetadata.title}
+        artistName={trackMetadata.artistName}
         connectUrl={connectUrl}
         spotifyConnected={Boolean(spotifyAccount)}
         canVerify={canVerify}

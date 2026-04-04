@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { handleApiError } from '@/lib/api-error'
 import { getAuthenticatedUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { hydrateTrackMetadata } from '@/lib/track-metadata'
 
 export const runtime = 'nodejs'
 
@@ -28,7 +29,12 @@ export async function GET(
       return NextResponse.json({ error: 'Track not found' }, { status: 404 })
     }
 
-    return NextResponse.json(track)
+    const metadata = await hydrateTrackMetadata(track)
+
+    return NextResponse.json({
+      ...track,
+      ...metadata,
+    })
   } catch (error) {
     return handleApiError(error, 'GET /api/tracks/:trackId')
   }

@@ -15,10 +15,7 @@ import {
   WaveformIcon,
 } from '@/components/AppIcons'
 import { useListeningSession } from '@/hooks/useListeningSession'
-import {
-  getSpotifyTrackLabel,
-  getSpotifyTrackReference,
-} from '@/lib/spotify'
+import { getSpotifyTrackLabel } from '@/lib/spotify'
 
 interface ListenPageClientProps {
   trackId: string
@@ -39,6 +36,8 @@ export default function ListenPageClient({
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [spotifyTrackId, setSpotifyTrackId] = useState<string | null>(null)
   const [spotifyUrl, setSpotifyUrl] = useState<string | null>(null)
+  const [trackTitle, setTrackTitle] = useState<string | null>(null)
+  const [artistName, setArtistName] = useState<string | null>(null)
   const [earnedCredit, setEarnedCredit] = useState(false)
   const [newCredits, setNewCredits] = useState<number | null>(null)
 
@@ -82,6 +81,8 @@ export default function ListenPageClient({
         if (match) {
           setSpotifyTrackId(match[1])
           setSpotifyUrl(data.spotifyUrl)
+          setTrackTitle(data.title ?? getSpotifyTrackLabel(data.spotifyUrl))
+          setArtistName(data.artistName ?? 'Unknown artist')
         } else {
           setFetchError('The stored Spotify URL is invalid.')
         }
@@ -224,10 +225,10 @@ export default function ListenPageClient({
                 </span>
                 <div>
                   <h2 className="text-2xl font-semibold text-white">
-                    {getSpotifyTrackLabel(spotifyUrl)}
+                    {trackTitle ?? getSpotifyTrackLabel(spotifyUrl)}
                   </h2>
                   <p className="mt-2 text-sm text-slate-400">
-                    {getSpotifyTrackReference(spotifyUrl)}
+                    {artistName ?? 'Unknown artist'}
                   </p>
                 </div>
               </div>

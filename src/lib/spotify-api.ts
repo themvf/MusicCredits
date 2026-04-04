@@ -4,11 +4,21 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { ApiRouteError } from '@/lib/api-error'
 import { serverEnv } from '@/lib/server-env'
-import { extractSpotifyTrackId, getSpotifyTrackUri } from '@/lib/spotify'
+import {
+  extractSpotifyTrackId,
+  getSpotifyTrackOpenUrl,
+  getSpotifyTrackUri,
+} from '@/lib/spotify'
 
 const SPOTIFY_ACCOUNTS_BASE_URL = 'https://accounts.spotify.com'
 const SPOTIFY_API_BASE_URL = 'https://api.spotify.com/v1'
 const TOKEN_REFRESH_BUFFER_MS = 60_000
+let spotifyAppTokenCache:
+  | {
+      accessToken: string
+      expiresAtMs: number
+    }
+  | null = null
 
 export const SPOTIFY_OAUTH_SCOPES = [
   'playlist-read-private',
@@ -66,6 +76,22 @@ interface SpotifyPlaylistItemPage {
   next: string | null
 }
 
+interface SpotifyTrackResponse {
+  id: string
+  name: string
+  artists: Array<{
+    name: string
+  }>
+  external_urls?: {
+    spotify?: string
+  }
+  album?: {
+    images?: Array<{
+      url: string
+    }>
+  }
+}
+
 export interface SyncedPlaylistRecord {
   id: string
   spotifyPlaylistId: string
@@ -74,6 +100,14 @@ export interface SyncedPlaylistRecord {
   followers: number
   trackCount: number
   lastSyncedAt: string
+}
+
+export interface SpotifyTrackMetadata {
+  spotifyTrackId: string
+  spotifyUrl: string
+  title: string
+  artistName: string
+  artworkUrl: string | null
 }
 
 export function buildSpotifyAuthorizeUrl(state: string) {
@@ -143,6 +177,14 @@ export async function refreshSpotifyToken(refreshToken: string) {
   return requestSpotifyToken(params)
 }
 
+async function requestSpotifyAppToken() {
+  const params = new URLSearchParams({
+    grant_type: 'client_credentials',
+  })
+
+  return requestSpotifyToken(params)
+}
+
 export async function fetchSpotifyJson<T>(
   accessToken: string,
   pathOrUrl: string,
@@ -190,6 +232,57 @@ export async function fetchSpotifyJson<T>(
 
 export async function fetchSpotifyProfile(accessToken: string) {
   return fetchSpotifyJson<SpotifyProfileResponse>(accessToken, '/me')
+}
+
+export async function getSpotifyAppAccessToken() {
+  if (
+    spotifyAppTokenCache &&
+    spotifyAppTokenCache.expiresAtMs - TOKEN_REFRESH_BUFFER_MS > Date.now()
+  ) {
+    return spotifyAppTokenCache.accessToken
+  }
+
+  const token = await requestSpotifyAppToken()
+
+  spotifyAppTokenCache = {
+    accessToken: token.access_token,
+    expiresAtMs: getExpiryDate(token.expires_in).getTime(),
+  }
+
+  return token.access_token
+}
+
+export async function fetchSpotifyTrackMetadata(
+  spotifyTrackId: string
+): Promise<SpotifyTrackMetadata> {
+  const accessToken = await getSpotifyAppAccessToken()
+  const track = await fetchSpotifyJson<SpotifyTrackResponse>(
+    accessToken,
+    `/tracks/${spotifyTrackId}`
+  )
+
+  return {
+    spotifyTrackId: track.id,
+    spotifyUrl:
+      track.external_urls?.spotify ??
+      getSpotifyTrackOpenUrl(`https://open.spotify.com/track/${track.id}`) ??
+      `https://open.spotify.com/track/${track.id}`,
+    title: track.name,
+    artistName:
+      track.artists.map((artist) => artist.name.trim()).filter(Boolean).join(', ') ||
+      'Unknown artist',
+    artworkUrl: track.album?.images?.[0]?.url ?? null,
+  }
+}
+
+export async function fetchSpotifyTrackMetadataByUrl(spotifyUrl: string) {
+  const spotifyTrackId = extractSpotifyTrackId(spotifyUrl)
+
+  if (!spotifyTrackId) {
+    throw new ApiRouteError(400, 'Must be a valid Spotify track URL')
+  }
+
+  return fetchSpotifyTrackMetadata(spotifyTrackId)
 }
 
 export async function requireSpotifyAccount(userId: string) {

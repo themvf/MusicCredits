@@ -1,10 +1,15 @@
 import 'server-only'
 
 import { prisma } from '@/lib/prisma'
+import { hydrateTrackMetadataList } from '@/lib/track-metadata'
 
 export interface EnrichedTrack {
   id: string
   spotifyUrl: string
+  spotifyTrackId: string | null
+  title: string
+  artistName: string
+  artworkUrl: string | null
   createdAt: string
   listenCount: number
   averageRating: number | null
@@ -15,6 +20,10 @@ export interface HistoryEntry {
   sessionId: string
   trackId: string
   spotifyUrl: string
+  spotifyTrackId: string | null
+  title: string
+  artistName: string
+  artworkUrl: string | null
   completedAt: string
   score: number | null
 }
@@ -49,13 +58,30 @@ export async function getCreatorAnalytics(userId: string) {
       where: { userId, completed: true },
       orderBy: { startedAt: 'desc' },
       include: {
-        track: { select: { spotifyUrl: true } },
+        track: {
+          select: {
+            id: true,
+            spotifyUrl: true,
+            spotifyTrackId: true,
+            title: true,
+            artistName: true,
+            artworkUrl: true,
+          },
+        },
         rating: { select: { score: true } },
       },
     }),
   ])
 
-  const enrichedTracks: EnrichedTrack[] = myTracks.map((track) => {
+  const hydratedTracks = await hydrateTrackMetadataList(myTracks)
+  const hydratedHistoryTracks = await hydrateTrackMetadataList(
+    completedSessions.map((session) => session.track)
+  )
+  const historyTrackById = new Map(
+    hydratedHistoryTracks.map((track) => [track.id, track] as const)
+  )
+
+  const enrichedTracks: EnrichedTrack[] = hydratedTracks.map((track) => {
     const ratings = track.sessions
       .map((session) => session.rating?.score)
       .filter((score): score is number => score !== undefined)
@@ -71,6 +97,10 @@ export async function getCreatorAnalytics(userId: string) {
     return {
       id: track.id,
       spotifyUrl: track.spotifyUrl,
+      spotifyTrackId: track.spotifyTrackId,
+      title: track.title,
+      artistName: track.artistName,
+      artworkUrl: track.artworkUrl,
       createdAt: track.createdAt.toISOString(),
       listenCount: track.sessions.length,
       averageRating,
@@ -78,13 +108,22 @@ export async function getCreatorAnalytics(userId: string) {
     }
   })
 
-  const historyEntries: HistoryEntry[] = completedSessions.map((session) => ({
-    sessionId: session.id,
-    trackId: session.trackId,
-    spotifyUrl: session.track.spotifyUrl,
-    completedAt: session.startedAt.toISOString(),
-    score: session.rating?.score ?? null,
-  }))
+  const historyEntries: HistoryEntry[] = completedSessions.map((session) => {
+    const track = historyTrackById.get(session.trackId)
+
+    return {
+      sessionId: session.id,
+      trackId: session.trackId,
+      spotifyUrl: track?.spotifyUrl ?? session.track.spotifyUrl,
+      spotifyTrackId: track?.spotifyTrackId ?? session.track.spotifyTrackId,
+      title: track?.title ?? session.track.title ?? 'Spotify Track',
+      artistName:
+        track?.artistName ?? session.track.artistName ?? 'Unknown artist',
+      artworkUrl: track?.artworkUrl ?? session.track.artworkUrl,
+      completedAt: session.startedAt.toISOString(),
+      score: session.rating?.score ?? null,
+    }
+  })
 
   const allRatings = enrichedTracks
     .map((track) => track.averageRating)

@@ -1,13 +1,13 @@
 import RatingStars from '@/components/RatingStars'
-import {
-  getSpotifyTrackLabel,
-  getSpotifyTrackReference,
-} from '@/lib/spotify'
 
 interface Session {
   sessionId: string
   trackId: string
   spotifyUrl: string
+  spotifyTrackId: string | null
+  title: string
+  artistName: string
+  artworkUrl: string | null
   completedAt: string
   score: number | null
 }
@@ -44,10 +44,10 @@ export default function ListeningHistory({
           >
             <div className="min-w-0">
               <p className="truncate text-base font-semibold text-white">
-                {getSpotifyTrackLabel(session.spotifyUrl)}
+                {session.title}
               </p>
               <p className="mt-1 truncate text-sm text-slate-400">
-                {getSpotifyTrackReference(session.spotifyUrl)}
+                {session.artistName}
               </p>
             </div>
 

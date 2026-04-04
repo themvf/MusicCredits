@@ -14,9 +14,7 @@ import {
 } from '@/components/AppIcons'
 import StatusToast from '@/components/StatusToast'
 import {
-  getSpotifyTrackLabel,
   getSpotifyTrackOpenUrl,
-  getSpotifyTrackReference,
 } from '@/lib/spotify'
 
 const VERIFY_DELAY_MS = 15_000
@@ -53,6 +51,8 @@ interface VerificationState {
 interface PlaylistVerificationCardProps {
   trackId: string
   spotifyUrl: string
+  trackTitle: string
+  artistName: string
   connectUrl: string
   spotifyConnected: boolean
   canVerify: boolean
@@ -64,6 +64,8 @@ interface PlaylistVerificationCardProps {
 export default function PlaylistVerificationCard({
   trackId,
   spotifyUrl,
+  trackTitle,
+  artistName,
   connectUrl,
   spotifyConnected,
   canVerify,
@@ -96,8 +98,6 @@ export default function PlaylistVerificationCard({
     title: '',
   })
 
-  const trackLabel = getSpotifyTrackLabel(spotifyUrl)
-  const trackReference = getSpotifyTrackReference(spotifyUrl)
   const spotifyTrackOpenUrl = getSpotifyTrackOpenUrl(spotifyUrl)
 
   useEffect(() => {
@@ -416,8 +416,8 @@ export default function PlaylistVerificationCard({
                   Playlist verification
                 </span>
                 <div>
-                  <h2 className="text-2xl font-semibold text-white">{trackLabel}</h2>
-                  <p className="mt-2 text-sm text-slate-400">{trackReference}</p>
+                  <h2 className="text-2xl font-semibold text-white">{trackTitle}</h2>
+                  <p className="mt-2 text-sm text-slate-400">{artistName}</p>
                 </div>
               </div>
 
