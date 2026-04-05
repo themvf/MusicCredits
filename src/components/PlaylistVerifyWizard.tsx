@@ -41,6 +41,7 @@ export interface VerificationState {
   verified: boolean
   quality: 'pending' | 'verified' | 'failed' | 'low_quality'
   verificationType: 'snapshot' | 'platform'
+  currentTrackPosition: number | null
   verifiedAt: string | null
   persistenceDueAt: string | null
 }
@@ -191,7 +192,7 @@ export default function PlaylistVerifyWizard({
         open: true,
         tone: 'success',
         title: 'Spotify connected',
-                description: 'Your playlists are ready to verify this track.',
+        description: 'Your playlists are ready to verify this track.',
       })
     }
 
@@ -233,9 +234,6 @@ export default function PlaylistVerifyWizard({
 
         if (!cancelled) {
           setPlaylists(data.playlists)
-          if (!selectedPlaylistId && data.playlists[0]) {
-            setSelectedPlaylistId(data.playlists[0].id)
-          }
         }
       } catch (error) {
         if (!cancelled) {
@@ -408,6 +406,7 @@ export default function PlaylistVerifyWizard({
         verified: data.verified,
         quality: data.quality,
         verificationType: data.verificationType,
+        currentTrackPosition: data.currentTrackPosition ?? null,
         verifiedAt: data.verifiedAt,
         persistenceDueAt: data.persistenceDueAt,
       }
@@ -570,6 +569,15 @@ export default function PlaylistVerifyWizard({
                   </>
                 )}
               </button>
+              {selectedPlaylistId && (
+                <button
+                  type="button"
+                  onClick={handleChooseDifferentPlaylist}
+                  className="button-secondary mt-3 w-full"
+                >
+                  Choose different playlist
+                </button>
+              )}
             </StepShell>
 
             <StepShell

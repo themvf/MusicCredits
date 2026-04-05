@@ -51,7 +51,8 @@ export default async function MyTracksPage() {
           <div>
             <h2 className="text-2xl font-semibold text-white">Track roster</h2>
             <p className="mt-1 text-sm text-slate-400">
-              Every queued release and its current performance.
+              Every queued release, its current performance, and confirmed
+              playlist destinations.
             </p>
           </div>
           <Link href="/earnings" className="button-ghost gap-1 px-0 py-0">

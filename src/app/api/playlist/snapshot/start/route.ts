@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { ApiRouteError, handleApiError } from '@/lib/api-error'
 import { getAuthenticatedUser } from '@/lib/auth'
@@ -6,7 +7,7 @@ import { getPendingPlaylistVerificationState } from '@/lib/playlist-verification
 import { prisma } from '@/lib/prisma'
 import {
   assertPlaylistVerificationEligibility,
-  fetchPlaylistTrackIdsForUser,
+  fetchPlaylistTrackEntriesForUser,
   PLAYLIST_VERIFY_DELAY_MS,
   requireTrackSpotifyId,
 } from '@/lib/spotify-api'
@@ -54,10 +55,11 @@ export async function POST(req: NextRequest) {
     }
 
     const { spotifyTrackId } = await requireTrackSpotifyId(body.trackId)
-    const beforeTrackIds = await fetchPlaylistTrackIdsForUser(
+    const beforeTrackEntries = await fetchPlaylistTrackEntriesForUser(
       user.id,
       playlist.spotifyPlaylistId
     )
+    const beforeTrackIds = beforeTrackEntries.map((entry) => entry.spotifyTrackId)
 
     if (beforeTrackIds.includes(spotifyTrackId)) {
       throw new ApiRouteError(
@@ -73,6 +75,7 @@ export async function POST(req: NextRequest) {
         trackId: body.trackId,
         snapshotType: 'before',
         trackIds: beforeTrackIds,
+        trackEntries: beforeTrackEntries as unknown as Prisma.InputJsonValue,
       },
     })
 

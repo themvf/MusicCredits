@@ -11,7 +11,9 @@ import { prisma } from '@/lib/prisma'
 import {
   addTrackToPlaylistWithPlatformToken,
   assertPlaylistVerificationEligibility,
+  fetchPlaylistTrackEntriesForPlatform,
   fetchSpotifyPlaylistDetailForPlatform,
+  getTrackPositionFromPlaylistEntries,
   requireTrackSpotifyId,
 } from '@/lib/spotify-api'
 
@@ -103,11 +105,31 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const { spotifyTrackUri } = await requireTrackSpotifyId(body.trackId)
+    const { spotifyTrackId, spotifyTrackUri } = await requireTrackSpotifyId(
+      body.trackId
+    )
     const addResult = await addTrackToPlaylistWithPlatformToken(
       playlist.spotifyPlaylistId,
       spotifyTrackUri
     )
+
+    let currentTrackPosition: number | null = null
+
+    try {
+      const afterTrackEntries = await fetchPlaylistTrackEntriesForPlatform(
+        playlist.spotifyPlaylistId
+      )
+      currentTrackPosition = getTrackPositionFromPlaylistEntries(
+        afterTrackEntries,
+        spotifyTrackId
+      )
+    } catch (error) {
+      console.error(
+        '[Platform playlist position lookup failed]',
+        playlist.spotifyPlaylistId,
+        error
+      )
+    }
 
     const now = new Date()
     const nextState = getPlatformPlaylistVerificationState()
@@ -127,6 +149,7 @@ export async function POST(req: NextRequest) {
         snapshotId: null,
         verified: nextState.verified,
         quality: nextState.quality,
+        currentTrackPosition,
         verifiedAt: now,
         lastCheckedAt: now,
         persistenceDueAt,
@@ -137,6 +160,7 @@ export async function POST(req: NextRequest) {
         snapshotId: null,
         verified: nextState.verified,
         quality: nextState.quality,
+        currentTrackPosition,
         verifiedAt: now,
         lastCheckedAt: now,
         persistenceDueAt,
@@ -153,6 +177,7 @@ export async function POST(req: NextRequest) {
       verified: verification.verified,
       quality: verification.quality,
       verificationType: verification.verificationType,
+      currentTrackPosition: verification.currentTrackPosition,
       persistenceDueAt: verification.persistenceDueAt?.toISOString() ?? null,
       snapshotId: addResult.snapshot_id,
     })

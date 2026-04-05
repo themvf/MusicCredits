@@ -32,6 +32,7 @@ export async function POST(
       verificationId: updated.id,
       verified: updated.verified,
       quality: updated.quality,
+      currentTrackPosition: updated.currentTrackPosition,
       stillPresent,
       alreadyFinalized,
       persistenceDueAt: updated.persistenceDueAt?.toISOString() ?? null,

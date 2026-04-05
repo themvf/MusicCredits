@@ -81,6 +81,7 @@ export default async function ListenPage({
               verified: verification.verified,
               quality: verification.quality,
               verificationType: verification.verificationType,
+              currentTrackPosition: verification.currentTrackPosition,
               verifiedAt: verification.verifiedAt?.toISOString() ?? null,
               persistenceDueAt:
                 verification.persistenceDueAt?.toISOString() ?? null,

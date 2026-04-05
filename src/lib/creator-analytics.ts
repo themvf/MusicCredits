@@ -3,6 +3,20 @@ import 'server-only'
 import { prisma } from '@/lib/prisma'
 import { hydrateTrackMetadataList } from '@/lib/track-metadata'
 
+export type PlaylistPlacementStatus =
+  | 'pending'
+  | 'verified'
+  | 'failed'
+  | 'low_quality'
+
+export interface PlaylistPlacement {
+  playlistId: string
+  playlistName: string
+  playlistUrl: string | null
+  verificationStatus: PlaylistPlacementStatus
+  currentTrackPosition: number | null
+}
+
 export interface EnrichedTrack {
   id: string
   spotifyUrl: string
@@ -14,6 +28,7 @@ export interface EnrichedTrack {
   listenCount: number
   averageRating: number | null
   ratingCount: number
+  playlistPlacements: PlaylistPlacement[]
 }
 
 export interface HistoryEntry {
@@ -42,6 +57,90 @@ export interface CreditTrendPoint {
   spent: number
 }
 
+function getPlacementStatusPriority(status: PlaylistPlacementStatus) {
+  switch (status) {
+    case 'verified':
+      return 0
+    case 'pending':
+      return 1
+    case 'low_quality':
+      return 2
+    case 'failed':
+      return 3
+  }
+}
+
+function aggregatePlaylistPlacements(
+  placements: Array<{
+    playlistId: string
+    quality: PlaylistPlacementStatus
+    currentTrackPosition: number | null
+    updatedAt: Date
+    playlist: {
+      name: string
+      spotifyUrl: string | null
+    }
+  }>
+): PlaylistPlacement[] {
+  const groupedPlacements = new Map<string, typeof placements>()
+
+  for (const placement of placements) {
+    const existing = groupedPlacements.get(placement.playlistId)
+
+    if (existing) {
+      existing.push(placement)
+      continue
+    }
+
+    groupedPlacements.set(placement.playlistId, [placement])
+  }
+
+  return Array.from(groupedPlacements.entries())
+    .map(([, grouped]) => {
+      const primaryPlacement = [...grouped].sort((left, right) => {
+        const statusDelta =
+          getPlacementStatusPriority(left.quality) -
+          getPlacementStatusPriority(right.quality)
+
+        if (statusDelta !== 0) {
+          return statusDelta
+        }
+
+        if (left.currentTrackPosition === null && right.currentTrackPosition !== null) {
+          return 1
+        }
+
+        if (left.currentTrackPosition !== null && right.currentTrackPosition === null) {
+          return -1
+        }
+
+        return right.updatedAt.getTime() - left.updatedAt.getTime()
+      })[0]
+
+      return {
+        playlistId: primaryPlacement.playlistId,
+        playlistName: primaryPlacement.playlist.name,
+        playlistUrl: primaryPlacement.playlist.spotifyUrl,
+        verificationStatus: primaryPlacement.quality,
+        currentTrackPosition:
+          primaryPlacement.quality === 'verified'
+            ? primaryPlacement.currentTrackPosition
+            : null,
+      }
+    })
+    .sort((left, right) => {
+      const statusDelta =
+        getPlacementStatusPriority(left.verificationStatus) -
+        getPlacementStatusPriority(right.verificationStatus)
+
+      if (statusDelta !== 0) {
+        return statusDelta
+      }
+
+      return left.playlistName.localeCompare(right.playlistName)
+    })
+}
+
 export async function getCreatorAnalytics(userId: string) {
   const [myTracks, completedSessions] = await Promise.all([
     prisma.track.findMany({
@@ -51,6 +150,17 @@ export async function getCreatorAnalytics(userId: string) {
         sessions: {
           where: { completed: true },
           include: { rating: true },
+        },
+        playlistVerifications: {
+          include: {
+            playlist: {
+              select: {
+                name: true,
+                spotifyUrl: true,
+              },
+            },
+          },
+          orderBy: [{ updatedAt: 'desc' }],
         },
       },
     }),
@@ -105,6 +215,7 @@ export async function getCreatorAnalytics(userId: string) {
       listenCount: track.sessions.length,
       averageRating,
       ratingCount: ratings.length,
+      playlistPlacements: aggregatePlaylistPlacements(track.playlistVerifications),
     }
   })
 

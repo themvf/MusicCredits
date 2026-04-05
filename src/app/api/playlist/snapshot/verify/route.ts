@@ -10,8 +10,9 @@ import { schedulePlaylistVerificationPersistenceCheck } from '@/lib/playlist-ver
 import { prisma } from '@/lib/prisma'
 import {
   assertPlaylistVerificationEligibility,
-  fetchPlaylistTrackIdsForUser,
+  fetchPlaylistTrackEntriesForUser,
   getTrackIdsFromSnapshot,
+  getTrackPositionFromPlaylistEntries,
   PLAYLIST_VERIFY_DELAY_MS,
   requireTrackSpotifyId,
 } from '@/lib/spotify-api'
@@ -74,14 +75,20 @@ export async function POST(req: NextRequest) {
     }
 
     const { spotifyTrackId } = await requireTrackSpotifyId(snapshot.trackId)
-    const beforeTrackIds = getTrackIdsFromSnapshot(snapshot.trackIds)
-    const afterTrackIds = await fetchPlaylistTrackIdsForUser(
+    const beforeTrackIds = getTrackIdsFromSnapshot(
+      snapshot.trackEntries ?? snapshot.trackIds
+    )
+    const afterTrackEntries = await fetchPlaylistTrackEntriesForUser(
       user.id,
       snapshot.playlist.spotifyPlaylistId
     )
+    const currentTrackPosition = getTrackPositionFromPlaylistEntries(
+      afterTrackEntries,
+      spotifyTrackId
+    )
 
     const verified =
-      afterTrackIds.includes(spotifyTrackId) &&
+      currentTrackPosition !== null &&
       !beforeTrackIds.includes(spotifyTrackId)
 
     const now = new Date()
@@ -103,6 +110,7 @@ export async function POST(req: NextRequest) {
         verificationType: 'snapshot',
         verified: nextState.verified,
         quality: nextState.quality,
+        currentTrackPosition: verified ? currentTrackPosition : null,
         verifiedAt: verified ? now : null,
         lastCheckedAt: now,
         persistenceDueAt,
@@ -113,6 +121,7 @@ export async function POST(req: NextRequest) {
         verificationType: 'snapshot',
         verified: nextState.verified,
         quality: nextState.quality,
+        currentTrackPosition: verified ? currentTrackPosition : null,
         verifiedAt: verified ? now : null,
         lastCheckedAt: now,
         persistenceDueAt,
@@ -132,6 +141,7 @@ export async function POST(req: NextRequest) {
       verified,
       quality: verification.quality,
       verificationType: verification.verificationType,
+      currentTrackPosition: verification.currentTrackPosition,
       verifiedAt: verification.verifiedAt?.toISOString() ?? null,
       persistenceDueAt: verification.persistenceDueAt?.toISOString() ?? null,
     })

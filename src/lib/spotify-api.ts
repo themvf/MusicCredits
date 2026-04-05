@@ -76,6 +76,11 @@ interface SpotifyPlaylistItemPage {
   next: string | null
 }
 
+export interface SpotifyPlaylistTrackEntry {
+  spotifyTrackId: string
+  position: number
+}
+
 interface SpotifyTrackResponse {
   id: string
   name: string
@@ -434,11 +439,11 @@ export async function syncSpotifyPlaylistsForUser(userId: string) {
   })) satisfies SyncedPlaylistRecord[]
 }
 
-export async function fetchAllPlaylistTrackIds(
+export async function fetchAllPlaylistTrackEntries(
   accessToken: string,
   spotifyPlaylistId: string
 ) {
-  const trackIds: string[] = []
+  const trackEntries: SpotifyPlaylistTrackEntry[] = []
   let nextUrl: string | null =
     `${SPOTIFY_API_BASE_URL}/playlists/${spotifyPlaylistId}/tracks?limit=100&fields=items(track(id,type)),next`
 
@@ -450,14 +455,29 @@ export async function fetchAllPlaylistTrackIds(
 
     for (const item of page.items) {
       if (item.track?.type === 'track' && item.track.id) {
-        trackIds.push(item.track.id)
+        trackEntries.push({
+          spotifyTrackId: item.track.id,
+          position: trackEntries.length + 1,
+        })
       }
     }
 
     nextUrl = page.next
   }
 
-  return trackIds
+  return trackEntries
+}
+
+export async function fetchAllPlaylistTrackIds(
+  accessToken: string,
+  spotifyPlaylistId: string
+) {
+  const trackEntries = await fetchAllPlaylistTrackEntries(
+    accessToken,
+    spotifyPlaylistId
+  )
+
+  return trackEntries.map((entry) => entry.spotifyTrackId)
 }
 
 export async function fetchPlaylistTrackIdsForUser(
@@ -475,12 +495,52 @@ export async function fetchPlaylistTrackIdsForPlatform(
   return fetchAllPlaylistTrackIds(accessToken, spotifyPlaylistId)
 }
 
+export async function fetchPlaylistTrackEntriesForUser(
+  userId: string,
+  spotifyPlaylistId: string
+) {
+  const accessToken = await getValidSpotifyAccessToken(userId)
+  return fetchAllPlaylistTrackEntries(accessToken, spotifyPlaylistId)
+}
+
+export async function fetchPlaylistTrackEntriesForPlatform(
+  spotifyPlaylistId: string
+) {
+  const accessToken = await getPlatformSpotifyAccessToken()
+  return fetchAllPlaylistTrackEntries(accessToken, spotifyPlaylistId)
+}
+
 export function getTrackIdsFromSnapshot(trackIds: Prisma.JsonValue) {
   if (!Array.isArray(trackIds)) {
     return []
   }
 
-  return trackIds.filter((trackId): trackId is string => typeof trackId === 'string')
+  return trackIds.flatMap((trackId) => {
+    if (typeof trackId === 'string') {
+      return [trackId]
+    }
+
+    if (
+      trackId &&
+      typeof trackId === 'object' &&
+      'spotifyTrackId' in trackId &&
+      typeof trackId.spotifyTrackId === 'string'
+    ) {
+      return [trackId.spotifyTrackId]
+    }
+
+    return []
+  })
+}
+
+export function getTrackPositionFromPlaylistEntries(
+  trackEntries: SpotifyPlaylistTrackEntry[],
+  spotifyTrackId: string
+) {
+  return (
+    trackEntries.find((entry) => entry.spotifyTrackId === spotifyTrackId)?.position ??
+    null
+  )
 }
 
 export async function requireTrackSpotifyId(trackId: string) {

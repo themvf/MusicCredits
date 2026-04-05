@@ -3,8 +3,9 @@ import 'server-only'
 import { ApiRouteError } from '@/lib/api-error'
 import { prisma } from '@/lib/prisma'
 import {
-  fetchPlaylistTrackIdsForPlatform,
-  fetchPlaylistTrackIdsForUser,
+  fetchPlaylistTrackEntriesForPlatform,
+  fetchPlaylistTrackEntriesForUser,
+  getTrackPositionFromPlaylistEntries,
   PLAYLIST_PERSISTENCE_RECHECK_MS,
   requireTrackSpotifyId,
 } from '@/lib/spotify-api'
@@ -49,6 +50,21 @@ export function getPersistencePlaylistVerificationState(stillPresent: boolean) {
 
 export function getPlaylistVerificationDueAt(verifiedAt: Date) {
   return new Date(verifiedAt.getTime() + PLAYLIST_PERSISTENCE_RECHECK_MS)
+}
+
+export async function fetchCurrentPlaylistTrackEntriesForVerification(verification: {
+  userId: string
+  verificationType: 'snapshot' | 'platform'
+  playlist: {
+    spotifyPlaylistId: string
+  }
+}) {
+  return verification.verificationType === 'platform'
+    ? fetchPlaylistTrackEntriesForPlatform(verification.playlist.spotifyPlaylistId)
+    : fetchPlaylistTrackEntriesForUser(
+        verification.userId,
+        verification.playlist.spotifyPlaylistId
+      )
 }
 
 function isPersistenceReconciled(
@@ -110,14 +126,13 @@ export async function reconcilePlaylistVerificationPersistence(
   }
 
   const { spotifyTrackId } = await requireTrackSpotifyId(verification.trackId)
-  const afterTrackIds =
-    verification.verificationType === 'platform'
-      ? await fetchPlaylistTrackIdsForPlatform(verification.playlist.spotifyPlaylistId)
-      : await fetchPlaylistTrackIdsForUser(
-          verification.userId,
-          verification.playlist.spotifyPlaylistId
-        )
-  const stillPresent = afterTrackIds.includes(spotifyTrackId)
+  const afterTrackEntries =
+    await fetchCurrentPlaylistTrackEntriesForVerification(verification)
+  const currentTrackPosition = getTrackPositionFromPlaylistEntries(
+    afterTrackEntries,
+    spotifyTrackId
+  )
+  const stillPresent = currentTrackPosition !== null
   const nextState = getPersistencePlaylistVerificationState(stillPresent)
 
   const updated = await prisma.playlistVerification.update({
@@ -125,6 +140,7 @@ export async function reconcilePlaylistVerificationPersistence(
     data: {
       verified: nextState.verified,
       quality: nextState.quality,
+      currentTrackPosition,
       lastCheckedAt: new Date(),
       persistenceDueAt: null,
     },
