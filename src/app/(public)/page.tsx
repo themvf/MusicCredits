@@ -14,8 +14,7 @@ const TICKER_TEXT =
 const FOOTER_TICKER =
   'INFLUENCE IS NOT FOR SALE \u00B7 GREATNESS EARNS IT \u00B7 \u2666 INFLUENCE IS NOT FOR SALE \u00B7 GREATNESS EARNS IT \u00B7 \u2666 INFLUENCE IS NOT FOR SALE \u00B7 GREATNESS EARNS IT \u00B7 \u2666 '
 
-// Outlined text: text color matches the acid background so only the shadow stroke
-// shows — works in every browser without -webkit-text-stroke.
+// Outlined text via text-shadow — cross-browser reliable, no -webkit-text-stroke
 const OUTLINE_STYLE: React.CSSProperties = {
   color: ACID,
   textShadow: `-3px -3px 0 ${NEAR_BLACK}, 3px -3px 0 ${NEAR_BLACK}, -3px 3px 0 ${NEAR_BLACK}, 3px 3px 0 ${NEAR_BLACK}`,
@@ -131,67 +130,78 @@ export default async function HomePage() {
   if (userId) redirect('/dashboard')
 
   return (
-    // Outer wrapper: gap-[3px] with near-black bg creates the thin divider lines between sections
-    <div className="flex flex-col gap-[3px] bg-[#0D0D0D] overflow-hidden">
+    // gap-[3px] + near-black bg = thin divider lines between every section
+    <div className="flex flex-col gap-[3px] overflow-hidden bg-[#0D0D0D]">
 
-      {/* ── Header ────────────────────────────────────────────────────── */}
+      {/* ── Header ──────────────────────────────────────────────────── */}
       <header className="bg-[#0A0A0A] px-6 py-4 md:px-10">
         <Link href="/" className="inline-flex items-center gap-0.5 text-xl font-bold tracking-tight text-white">
           Sound<span className="text-acid">Swap</span>
         </Link>
       </header>
 
-      {/* ── Hero ──────────────────────────────────────────────────────── */}
-      <section className="bg-acid px-6 pb-10 pt-8 md:px-10 lg:px-16">
+      {/* ── Hero ────────────────────────────────────────────────────── */}
+      {/*
+        pb-0: no bottom padding — sub-row sits flush beneath headline
+        relative: needed to position the stamp badge absolutely
+      */}
+      <section className="relative bg-acid px-6 pb-0 pt-8 md:px-10 lg:px-16">
+
+        {/* Option B stamp — hard-edge block, top-right */}
+        <div
+          className="absolute right-10 top-10 hidden sm:block"
+          style={{
+            background: '#FF2D6B',
+            padding: '14px 18px',
+            border: `2px solid ${NEAR_BLACK}`,
+            zIndex: 2,
+          }}
+          aria-hidden
+        >
+          <div style={{
+            fontSize: 11,
+            letterSpacing: '2px',
+            textTransform: 'uppercase',
+            color: ACID,
+            fontWeight: 600,
+            lineHeight: 1.6,
+          }}>
+            Curators<br />not<br />algorithms
+          </div>
+        </div>
+
         <div className="mx-auto max-w-7xl">
           {/* Eyebrow */}
           <p className="mb-4 text-xs font-semibold uppercase tracking-[0.28em] text-black/40">
             Artist &amp; Curator Network &middot; 2026
           </p>
 
-          {/* Headline row: text left, donut right */}
-          <div className="flex items-start justify-between gap-4">
-            <h1
-              className="flex-1 min-w-0 font-black leading-[0.92] tracking-tighter text-black"
-              style={{ fontSize: 'clamp(3.2rem, 9vw, 8.5rem)' }}
-            >
-              <span className="flex items-center gap-3">
-                Influence
-                <Sparkle
-                  className="text-black shrink-0"
-                  style={{ width: 'clamp(1.2rem, 3vw, 2.8rem)', height: 'clamp(1.2rem, 3vw, 2.8rem)' }}
-                />
-              </span>
-              <span>
-                is <span className="text-hp">earned.</span>
-              </span>
-              <span className="block">By</span>
-              {/* Outlined "greatness." via text-shadow — cross-browser reliable */}
-              <span className="block" style={OUTLINE_STYLE}>greatness.</span>
-            </h1>
+          {/* Headline — no margin-bottom; gap comes from sub-row padding-top only */}
+          <h1
+            className="min-w-0 font-black leading-[0.92] tracking-tighter text-black"
+            style={{ fontSize: 'clamp(3.2rem, 9vw, 8.5rem)' }}
+          >
+            <span className="flex items-center gap-3">
+              Influence
+              <Sparkle
+                className="shrink-0 text-black"
+                style={{ width: 'clamp(1.2rem, 3vw, 2.8rem)', height: 'clamp(1.2rem, 3vw, 2.8rem)' }}
+              />
+            </span>
+            <span>
+              is <span className="text-hp">earned.</span>
+            </span>
+            <span className="block">By</span>
+            <span className="block" style={OUTLINE_STYLE}>greatness.</span>
+          </h1>
 
-            {/* Pink donut */}
-            <div
-              className="mt-1 hidden shrink-0 rounded-full sm:block"
-              style={{
-                width: 'clamp(4.5rem, 10vw, 9rem)',
-                height: 'clamp(4.5rem, 10vw, 9rem)',
-                border: `clamp(10px, 2vw, 18px) solid #FF2D6B`,
-              }}
-              aria-hidden
-            />
-          </div>
-
-          {/* Divider */}
-          <div className="my-6 h-px bg-black/15" />
-
-          {/* Subtext + CTA */}
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          {/* Sub-row: border-top acts as divider; pt-6 = 24px only */}
+          <div className="flex flex-col gap-5 border-t border-black/15 pt-6 sm:flex-row sm:items-center sm:justify-between">
             <p className="max-w-sm text-sm leading-7 text-black/70">
               Real curators. Honest feedback. Your music heard by someone whose
               reputation is on the line.
             </p>
-            <div className="flex flex-col items-start gap-2 sm:items-end">
+            <div className="flex flex-col items-start gap-2 pb-8 sm:items-end">
               <Link
                 href="/sign-up"
                 className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-transparent px-6 py-3 text-sm font-bold text-black transition hover:bg-black hover:text-acid"
@@ -211,30 +221,28 @@ export default async function HomePage() {
       <Marquee text={TICKER_TEXT} bgClass="bg-hp" textClass="text-black" />
 
       {/* ── Feature cards — gap-[3px] between columns ─────────────── */}
-      <section
-        className="grid grid-cols-2 gap-[3px] bg-[#0D0D0D] lg:grid-cols-4"
-      >
+      <section className="grid grid-cols-2 gap-[3px] bg-[#0D0D0D] lg:grid-cols-4">
         {featureCards.map((card) => (
           <div
             key={card.eyebrow}
-            className={`${card.bg} flex min-h-[380px] flex-col justify-between p-7 lg:min-h-[440px]`}
+            // justify-start + gap-3: label and headline pinned to top; body pushed to bottom via mt-auto
+            className={`${card.bg} flex min-h-[380px] flex-col items-start gap-3 p-7 lg:min-h-[440px]`}
           >
             <p className={`text-[0.65rem] font-semibold uppercase tracking-[0.24em] ${card.eyebrowClass}`}>
               {card.eyebrow}
             </p>
-            <div>
-              <p
-                className={`font-black leading-tight tracking-tighter ${card.headlineClass}`}
-                style={{ fontSize: 'clamp(1.6rem, 3.5vw, 3rem)' }}
-              >
-                {card.headline.split('\n').map((line, i) => (
-                  <span key={i} className="block">{line}</span>
-                ))}
-              </p>
-              <p className={`mt-4 text-sm leading-6 ${card.bodyClass}`}>
-                {card.body}
-              </p>
-            </div>
+            <p
+              className={`font-black leading-tight tracking-tighter ${card.headlineClass}`}
+              style={{ fontSize: 'clamp(1.6rem, 3.5vw, 3rem)' }}
+            >
+              {card.headline.split('\n').map((line, i) => (
+                <span key={i} className="block">{line}</span>
+              ))}
+            </p>
+            {/* mt-auto pushes body to bottom of card */}
+            <p className={`mt-auto text-sm leading-6 ${card.bodyClass}`}>
+              {card.body}
+            </p>
           </div>
         ))}
       </section>
@@ -260,10 +268,7 @@ export default async function HomePage() {
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               {curator.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${curator.tagBg}`}
-                >
+                <span key={tag} className={`rounded-full px-3 py-1 text-xs font-medium ${curator.tagBg}`}>
                   {tag}
                 </span>
               ))}
@@ -272,8 +277,8 @@ export default async function HomePage() {
         ))}
       </section>
 
-      {/* ── How it works — tight band ────────────────────────────── */}
-      <section className="bg-[#0A0A0A] px-6 py-8 md:px-10">
+      {/* ── How it works — tight band, 20px top/bottom ───────────── */}
+      <section className="bg-[#0A0A0A] px-6 py-5 md:px-10">
         <div className="mx-auto max-w-7xl">
           <div className="grid gap-6 md:grid-cols-3 md:gap-0 md:divide-x md:divide-white/10">
             {[
@@ -311,7 +316,7 @@ export default async function HomePage() {
       </section>
 
       {/* ── Manifesto CTA ─────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-[#0A0A0A] px-6 py-12 md:px-10">
+      <section className="relative overflow-hidden bg-[#0A0A0A] px-6 py-10 md:px-10">
         {/* Decorative donut */}
         <div
           className="absolute -right-16 top-1/2 -translate-y-1/2 rounded-full opacity-10"
@@ -320,7 +325,6 @@ export default async function HomePage() {
         />
 
         <div className="relative mx-auto grid max-w-7xl items-center gap-8 md:grid-cols-2">
-          {/* Large type */}
           <h2
             className="font-black leading-[0.9] tracking-tighter"
             style={{ fontSize: 'clamp(2.8rem, 7.5vw, 7rem)' }}
@@ -332,7 +336,6 @@ export default async function HomePage() {
             <span className="block text-hp">earns it.</span>
           </h2>
 
-          {/* Right copy */}
           <div className="space-y-5">
             <p className="text-base leading-7 text-white/60">
               A curator who adds your track does it because they believe in it.
@@ -361,7 +364,7 @@ export default async function HomePage() {
             { text: "No guaranteed placement. That's the point.", check: false },
           ].map(({ text, check }) => (
             <div key={text} className="flex items-center gap-2">
-              {/* Fixed-size icon — explicit dimensions ensure cross-browser consistency */}
+              {/* Explicit inline dimensions for cross-browser icon consistency */}
               <span
                 style={{
                   display: 'inline-flex',
@@ -369,13 +372,13 @@ export default async function HomePage() {
                   justifyContent: 'center',
                   width: 20,
                   height: 20,
+                  minWidth: 20,
                   borderRadius: '50%',
                   background: 'rgba(0,0,0,0.22)',
                   fontSize: 12,
                   fontWeight: 900,
                   lineHeight: 1,
                   color: NEAR_BLACK,
-                  flexShrink: 0,
                   fontFamily: 'monospace',
                 }}
               >
