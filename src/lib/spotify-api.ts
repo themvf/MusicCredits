@@ -97,6 +97,57 @@ interface SpotifyTrackResponse {
   }
 }
 
+interface SpotifyTrackDetailResponse {
+  id: string
+  name: string
+  artists: Array<{ name: string }>
+  album: {
+    images: Array<{ url: string }>
+    release_date: string
+  }
+  duration_ms: number
+  explicit: boolean
+  external_urls?: { spotify?: string }
+}
+
+interface SpotifyAudioFeaturesResponse {
+  tempo: number
+}
+
+interface SpotifyArtistObject {
+  id: string
+  name: string
+  genres: string[]
+  followers: { total: number }
+  images: Array<{ url: string }>
+}
+
+interface SpotifyArtistSearchResponse {
+  artists: {
+    items: SpotifyArtistObject[]
+  }
+}
+
+export interface SpotifyTrackPreview {
+  spotifyTrackId: string
+  spotifyUrl: string
+  title: string
+  artistName: string
+  artworkUrl: string | null
+  releaseDate: string | null
+  durationMs: number
+  bpm: number | null
+  explicit: boolean
+}
+
+export interface SpotifyArtistResult {
+  id: string
+  name: string
+  genres: string[]
+  followers: number
+  imageUrl: string | null
+}
+
 export interface SyncedPlaylistRecord {
   id: string
   spotifyPlaylistId: string
@@ -620,4 +671,62 @@ export async function fetchSpotifyPlaylistDetailForPlatform(
 
 export function getSpotifyTokenExpiry(expiresInSeconds: number) {
   return getExpiryDate(expiresInSeconds)
+}
+
+export async function fetchSpotifyTrackPreview(
+  spotifyTrackId: string
+): Promise<SpotifyTrackPreview> {
+  const accessToken = await getSpotifyAppAccessToken()
+
+  const [trackResult, audioResult] = await Promise.allSettled([
+    fetchSpotifyJson<SpotifyTrackDetailResponse>(accessToken, `/tracks/${spotifyTrackId}`),
+    fetchSpotifyJson<SpotifyAudioFeaturesResponse>(accessToken, `/audio-features/${spotifyTrackId}`),
+  ])
+
+  if (trackResult.status === 'rejected') {
+    throw trackResult.reason
+  }
+
+  const t = trackResult.value
+  const bpm =
+    audioResult.status === 'fulfilled' ? Math.round(audioResult.value.tempo) : null
+
+  return {
+    spotifyTrackId: t.id,
+    spotifyUrl: t.external_urls?.spotify ?? `https://open.spotify.com/track/${t.id}`,
+    title: t.name,
+    artistName:
+      t.artists.map((a) => a.name.trim()).filter(Boolean).join(', ') || 'Unknown artist',
+    artworkUrl: t.album?.images?.[0]?.url ?? null,
+    releaseDate: t.album?.release_date ?? null,
+    durationMs: t.duration_ms,
+    bpm,
+    explicit: t.explicit,
+  }
+}
+
+export async function fetchSpotifyTrackPreviewByUrl(
+  spotifyUrl: string
+): Promise<SpotifyTrackPreview> {
+  const spotifyTrackId = extractSpotifyTrackId(spotifyUrl)
+  if (!spotifyTrackId) {
+    throw new ApiRouteError(400, 'Must be a valid Spotify track URL')
+  }
+  return fetchSpotifyTrackPreview(spotifyTrackId)
+}
+
+export async function searchSpotifyArtists(query: string): Promise<SpotifyArtistResult[]> {
+  const accessToken = await getSpotifyAppAccessToken()
+  const encoded = encodeURIComponent(query)
+  const response = await fetchSpotifyJson<SpotifyArtistSearchResponse>(
+    accessToken,
+    `/search?type=artist&q=${encoded}&limit=8`
+  )
+  return response.artists.items.map((artist) => ({
+    id: artist.id,
+    name: artist.name,
+    genres: artist.genres,
+    followers: artist.followers.total,
+    imageUrl: artist.images?.[0]?.url ?? null,
+  }))
 }

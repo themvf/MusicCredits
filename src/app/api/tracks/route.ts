@@ -3,25 +3,42 @@ import { z } from 'zod'
 import { handleApiError } from '@/lib/api-error'
 import { getAuthenticatedUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { fetchSpotifyTrackMetadataByUrl } from '@/lib/spotify-api'
+import { fetchSpotifyTrackPreviewByUrl } from '@/lib/spotify-api'
 
 export const runtime = 'nodejs'
 
+const soundsLikeArtistSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  genres: z.array(z.string()),
+  followers: z.number(),
+  imageUrl: z.string().nullable().optional(),
+})
+
 const submitSchema = z.object({
-  // Must be an exact Spotify track URL with a 22-char alphanumeric track ID
   spotifyUrl: z
     .string()
     .regex(
       /^https:\/\/open\.spotify\.com\/track\/[A-Za-z0-9]{22}/,
       'Must be a valid Spotify track URL (https://open.spotify.com/track/XXXX)'
     ),
+  genres: z
+    .array(z.string().min(1))
+    .min(1, 'Select at least one genre')
+    .max(2, 'Select up to 2 genres'),
+  moods: z
+    .array(z.string().min(1))
+    .min(1, 'Select at least one mood')
+    .max(3, 'Select up to 3 moods'),
+  soundsLikeArtists: z.array(soundsLikeArtistSchema).max(2).optional(),
+  story: z.string().max(120).optional(),
+  targetRegion: z.string().min(1, 'Select a target region'),
 })
 
 export async function POST(req: NextRequest) {
   try {
     const user = await getAuthenticatedUser()
 
-    // Parse and validate the request body
     const body = await req.json()
     const parsed = submitSchema.safeParse(body)
 
@@ -32,10 +49,11 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { spotifyUrl } = parsed.data
-    const metadata = await fetchSpotifyTrackMetadataByUrl(spotifyUrl.trim())
+    const { spotifyUrl, genres, moods, soundsLikeArtists, story, targetRegion } =
+      parsed.data
 
-    // Credit check before any write
+    const metadata = await fetchSpotifyTrackPreviewByUrl(spotifyUrl.trim())
+
     if (user.credits < 10) {
       return NextResponse.json(
         { error: 'Insufficient credits. You need at least 10 credits.' },
@@ -43,8 +61,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Atomic transaction: create the track AND deduct credits together.
-    // If either fails, neither change is committed.
     const [track] = await prisma.$transaction([
       prisma.track.create({
         data: {
@@ -54,6 +70,15 @@ export async function POST(req: NextRequest) {
           title: metadata.title,
           artistName: metadata.artistName,
           artworkUrl: metadata.artworkUrl,
+          releasedAt: metadata.releaseDate ? new Date(metadata.releaseDate) : null,
+          durationMs: metadata.durationMs,
+          bpm: metadata.bpm,
+          explicit: metadata.explicit,
+          genres,
+          moods,
+          soundsLikeArtists: soundsLikeArtists ?? [],
+          story: story ?? null,
+          targetRegion,
         },
       }),
       prisma.user.update({

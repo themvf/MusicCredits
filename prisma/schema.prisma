@@ -31,6 +31,17 @@ model Track {
   artistName            String?
   artworkUrl            String?
   createdAt             DateTime               @default(now())
+  // Extended submission metadata — auto-pulled from Spotify on submit
+  releasedAt            DateTime?
+  durationMs            Int?
+  bpm                   Float?
+  explicit              Boolean?
+  // Artist-selected form fields
+  genres                String[]               @default([])
+  moods                 String[]               @default([])
+  soundsLikeArtists     Json?
+  story                 String?
+  targetRegion          String?
   user                  User                   @relation(fields: [userId], references: [id])
   // Cascade: deleting a track removes all its sessions (and their ratings)
   sessions              ListeningSession[]     @relation("TrackSessions")
