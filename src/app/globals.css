@@ -157,3 +157,9 @@ button {
 .animate-slide-up-sheet {
   animation: slide-up-sheet 220ms ease-out both;
 }
+
+/* Public homepage utilities */
+.text-outline {
+  -webkit-text-stroke: 0.04em currentColor;
+  color: transparent;
+}

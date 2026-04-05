@@ -1,452 +1,395 @@
+import type React from 'react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
-import AppLogo from '@/components/AppLogo'
-import {
-  ActivityIcon,
-  ArrowUpRightIcon,
-  BoltIcon,
-  CheckIcon,
-  HeadphonesIcon,
-  ShieldIcon,
-  SparkIcon,
-  StarIcon,
-  TracksIcon,
-  UploadIcon,
-  UserGroupIcon,
-  WalletIcon,
-  WaveformIcon,
-} from '@/components/AppIcons'
 
-const steps = [
-  {
-    title: 'Submit your Spotify track',
-    description: 'Launch a campaign whenever you have credits ready to spend.',
-    icon: UploadIcon,
-    stat: '10 credits',
-  },
-  {
-    title: 'Listen for 30 focused seconds',
-    description: 'Every session is built for real attention, not passive bot traffic.',
-    icon: HeadphonesIcon,
-    stat: '30s minimum',
-  },
-  {
-    title: 'Earn credits and discovery',
-    description: 'Rate what you hear, grow your balance, and keep your music circulating.',
-    icon: StarIcon,
-    stat: '+1 credit',
-  },
-] as const
+// ─── Marquee strip ────────────────────────────────────────────────────────────
 
-const featureCards = [
-  {
-    title: 'Real listens, not vanity metrics',
-    description: 'Playback gating, friction prompts, and timed sessions keep engagement honest.',
-    icon: ShieldIcon,
-  },
-  {
-    title: 'Earn while discovering new artists',
-    description: 'Every listen builds your network and funds the next promotion cycle.',
-    icon: SparkIcon,
-  },
-  {
-    title: 'Fair credit loop',
-    description: 'Growth comes from contribution, not ad spend or hidden boosts.',
-    icon: WalletIcon,
-  },
-  {
-    title: 'Built for creator momentum',
-    description: 'Dashboard-grade analytics help artists see what is actually moving.',
-    icon: ActivityIcon,
-  },
-] as const
+const TICKER_TEXT =
+  'REAL EARS \u2666 HONEST FEEDBACK \u2666 TASTE NOT TRANSACTIONS \u2666 INFLUENCE IS EARNED \u2666 REAL EARS \u2666 HONEST FEEDBACK \u2666 TASTE NOT TRANSACTIONS \u2666 INFLUENCE IS EARNED \u2666 '
 
-const showcaseTracks = [
-  {
-    title: 'Night Drives',
-    artist: 'Kira Vale',
-    listens: '482 listens',
-    rating: '4.8 avg',
-  },
-  {
-    title: 'Faded Satellites',
-    artist: 'Hotel Static',
-    listens: '351 listens',
-    rating: '4.6 avg',
-  },
-  {
-    title: 'Blue Arcade',
-    artist: 'Atlas Bloom',
-    listens: '590 listens',
-    rating: '4.9 avg',
-  },
-] as const
+const FOOTER_TICKER =
+  'INFLUENCE IS NOT FOR SALE \u00B7 GREATNESS EARNS IT \u00B7 \u2666 INFLUENCE IS NOT FOR SALE \u00B7 GREATNESS EARNS IT \u00B7 \u2666 INFLUENCE IS NOT FOR SALE \u00B7 GREATNESS EARNS IT \u00B7 \u2666 '
 
-const testimonials = [
-  {
-    quote:
-      'It feels like the first promo tool that actually respects attention instead of inflating numbers.',
-    name: 'Nina Foster',
-    role: 'Independent pop artist',
-  },
-  {
-    quote:
-      'The exchange loop is clean. Listen, earn, submit, repeat. That simplicity makes it sticky.',
-    name: 'Dante Reyes',
-    role: 'Producer and songwriter',
-  },
-] as const
-
-function HeroVisualization() {
+function Marquee({
+  text,
+  bgClass,
+  textClass,
+  speed = 'normal',
+}: {
+  text: string
+  bgClass: string
+  textClass: string
+  speed?: 'normal' | 'slow'
+}) {
   return (
-    <div className="relative mx-auto w-full max-w-[34rem]">
-      <div className="hero-orb left-10 top-10 h-28 w-28 bg-brand-500/20" />
-      <div className="hero-orb bottom-16 right-4 h-32 w-32 bg-sky-500/14" />
-
-      <div className="relative grid gap-4">
-        <div className="surface-card animate-float-card p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.26em] text-slate-500">
-                Listening queue
-              </p>
-              <h3 className="mt-2 text-lg font-semibold text-white">
-                Tracks waiting for real ears
-              </h3>
-            </div>
-            <span className="rounded-full border border-brand-400/20 bg-brand-500/10 px-3 py-1 text-xs font-medium text-brand-300">
-              Live
-            </span>
-          </div>
-
-          <div className="space-y-3">
-            {showcaseTracks.map((track, index) => (
-              <div
-                key={track.title}
-                className="flex items-center justify-between rounded-2xl border border-white/8 bg-slate-950/55 px-4 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(34,197,94,0.22),rgba(59,130,246,0.22))] text-sm font-semibold text-white">
-                    0{index + 1}
-                  </div>
-                  <div>
-                    <p className="font-medium text-white">{track.title}</p>
-                    <p className="text-sm text-slate-400">{track.artist}</p>
-                  </div>
-                </div>
-                <div className="text-right text-xs text-slate-400">
-                  <p>{track.listens}</p>
-                  <p>{track.rating}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-[1.15fr_0.85fr]">
-          <div className="surface-card-soft p-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
-              Credit velocity
-            </p>
-            <div className="mt-3 flex items-end justify-between">
-              <div>
-                <p className="metric-value">+42</p>
-                <p className="text-sm text-slate-400">credits earned this week</p>
-              </div>
-              <span className="rounded-full bg-brand-500/12 px-3 py-1 text-xs font-medium text-brand-300">
-                +18%
-              </span>
-            </div>
-            <div className="mt-5 flex h-16 items-end gap-2">
-              {[34, 48, 42, 65, 58, 72, 84].map((height, index) => (
-                <span
-                  key={height}
-                  className="animate-pulse-line w-full rounded-full bg-[linear-gradient(180deg,rgba(34,197,94,0.88),rgba(59,130,246,0.35))]"
-                  style={{
-                    height: `${height}%`,
-                    animationDelay: `${index * 120}ms`,
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="surface-card-soft p-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
-              Session quality
-            </p>
-            <div className="mt-4 flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-center">
-              <div>
-                <p className="text-2xl font-semibold text-white">94%</p>
-                <p className="text-[0.68rem] uppercase tracking-[0.2em] text-slate-500">
-                  verified
-                </p>
-              </div>
-            </div>
-            <p className="mt-4 text-sm leading-6 text-slate-400">
-              Anti-skip timing and feedback prompts keep every listen intentional.
-            </p>
-          </div>
-        </div>
+    <div className={`overflow-hidden ${bgClass} py-3`}>
+      <div
+        className={`flex whitespace-nowrap ${speed === 'slow' ? 'animate-marquee-slow' : 'animate-marquee'}`}
+      >
+        <span className={`px-6 text-xs font-bold tracking-[0.22em] uppercase ${textClass}`}>
+          {text}
+        </span>
+        <span
+          aria-hidden
+          className={`px-6 text-xs font-bold tracking-[0.22em] uppercase ${textClass}`}
+        >
+          {text}
+        </span>
       </div>
     </div>
   )
 }
 
+// ─── Sparkle icon ────────────────────────────────────────────────────────────
+
+function Sparkle({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      viewBox="0 0 40 40"
+      fill="currentColor"
+      aria-hidden="true"
+      className={className}
+      style={style}
+    >
+      <path d="M20 0 C20 0 21.5 14 26 18 C30 22 40 20 40 20 C40 20 30 21.5 26 26 C22 30 20 40 20 40 C20 40 18.5 30 14 26 C10 22 0 20 0 20 C0 20 10 18.5 14 14 C18 10 20 0 20 0Z" />
+    </svg>
+  )
+}
+
+// ─── Feature cards ───────────────────────────────────────────────────────────
+
+const featureCards = [
+  {
+    eyebrow: 'Real Listen',
+    headline: 'Human ears. Every time.',
+    body: 'Not an algorithm. Not a bot. A real person in your genre who actually cares.',
+    bg: 'bg-hp',
+    eyebrowClass: 'text-black/50',
+    headlineClass: 'text-white',
+    bodyClass: 'text-white/70',
+  },
+  {
+    eyebrow: 'Curator Feedback',
+    headline: 'Their take.\nUnfiltered.',
+    body: 'Straight from the curator. What they heard. What they felt. What it means for your music.',
+    bg: 'bg-[#0A0A0A]',
+    eyebrowClass: 'text-white/40',
+    headlineClass: 'text-hp',
+    bodyClass: 'text-white/50',
+  },
+  {
+    eyebrow: 'Placement',
+    headline: 'Earned.\nNever bought.',
+    body: 'Reputation on the line. Their name on it. Their call alone.',
+    bg: 'bg-cobalt',
+    eyebrowClass: 'text-white/50',
+    headlineClass: 'text-white',
+    bodyClass: 'text-white/70',
+  },
+  {
+    eyebrow: 'Curator Ratings',
+    headline: 'Every curator rated.',
+    body: 'Artists rate every session. Only the best curators stay on the platform.',
+    bg: 'bg-[#E8E8E8]',
+    eyebrowClass: 'text-black/40',
+    headlineClass: 'text-black',
+    bodyClass: 'text-black/60',
+  },
+] as const
+
+// ─── Curator profiles ────────────────────────────────────────────────────────
+
+const curators = [
+  {
+    initials: 'MR',
+    name: 'Marcus Reid',
+    meta: 'Neo-soul · R&B · Jazz · Since 2011',
+    quote: '"My playlist is my reputation. I add what moves me."',
+    tags: ['Neo-soul', 'R&B', 'Jazz'],
+    bg: 'bg-cobalt',
+    tagBg: 'bg-white/10 text-white',
+    quoteClass: 'text-white',
+    metaClass: 'text-white/60',
+    nameClass: 'text-white',
+  },
+  {
+    initials: 'SL',
+    name: 'Sofia Lange',
+    meta: 'Indie · Alt · Bedroom pop · Since 2021',
+    quote: '"I\'m not here to fill a playlist. I\'m here to be right."',
+    tags: ['Indie', 'Alternative', 'Bedroom pop'],
+    bg: 'bg-[#111111]',
+    tagBg: 'bg-white/8 text-white/70 border border-white/10',
+    quoteClass: 'text-white',
+    metaClass: 'text-white/50',
+    nameClass: 'text-white',
+  },
+] as const
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default async function HomePage() {
   const { userId } = await auth()
-
-  if (userId) {
-    redirect('/dashboard')
-  }
+  if (userId) redirect('/dashboard')
 
   return (
-    <main className="relative overflow-hidden pb-24">
-      <div className="hero-orb left-[-8rem] top-[-6rem] h-72 w-72 bg-brand-500/15" />
-      <div className="hero-orb right-[-10rem] top-36 h-80 w-80 bg-sky-500/12" />
+    <div className="overflow-hidden">
 
-      <header className="section-shell relative z-10 flex items-center justify-between py-6">
-        <AppLogo />
-        <div className="hidden items-center gap-8 md:flex">
-          <a href="#how-it-works" className="button-ghost px-0 py-0">
-            How it works
-          </a>
-          <a href="#features" className="button-ghost px-0 py-0">
-            Features
-          </a>
-          <Link href="/sign-in" className="button-ghost">
-            Sign in
-          </Link>
-          <Link href="/sign-up" className="button-primary">
-            Start free
-          </Link>
-        </div>
+      {/* ── Header ──────────────────────────────────────────────────── */}
+      <header className="bg-[#0A0A0A] px-6 py-4 md:px-10">
+        <Link href="/" className="inline-flex items-center gap-0.5 text-xl font-bold tracking-tight text-white">
+          Sound<span className="text-acid">Swap</span>
+        </Link>
       </header>
 
-      <section className="section-shell relative z-10 pt-10 sm:pt-16">
-        <div className="grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="space-y-8">
-            <div className="space-y-5">
-              <span className="eyebrow-badge">
-                <WaveformIcon className="h-4 w-4" />
-                Credit-based music exchange
+      {/* ── Hero ──────────────────────────────────────────────────────── */}
+      <section className="bg-acid px-6 pb-12 pt-10 md:px-10 lg:px-16">
+        <div className="mx-auto max-w-7xl">
+          {/* Eyebrow */}
+          <p className="mb-6 text-xs font-semibold uppercase tracking-[0.28em] text-black/40">
+            Artist &amp; Curator Network &middot; 2026
+          </p>
+
+          {/* Headline */}
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="font-black leading-[0.92] tracking-tighter text-black"
+                style={{ fontSize: 'clamp(3.4rem, 9.5vw, 8.5rem)' }}>
+              <span className="flex items-center gap-3">
+                Influence
+                <Sparkle className="text-black" style={{ width: 'clamp(1.4rem, 3.5vw, 3rem)', height: 'clamp(1.4rem, 3.5vw, 3rem)' } as React.CSSProperties} />
               </span>
-              <div className="space-y-5">
-                <h1 className="max-w-3xl text-5xl font-semibold tracking-[-0.04em] text-white sm:text-6xl lg:text-7xl">
-                  SoundSwap
-                </h1>
-                <p className="max-w-2xl text-xl leading-8 text-slate-300">
-                  A credit-based music exchange. Listen, earn, grow.
-                </p>
-                <p className="max-w-2xl text-base leading-8 text-slate-400 sm:text-lg">
-                  Artists submit songs, earn attention by supporting other creators,
-                  and turn every focused listen into momentum for their next release.
-                </p>
-              </div>
-            </div>
+              <span>
+                is <span className="text-hp">earned.</span>
+              </span>
+              <span className="block">By</span>
+              <span className="text-outline block text-black">greatness.</span>
+            </h1>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Link href="/sign-up" className="button-primary">
-                <HeadphonesIcon className="h-4 w-4" />
-                Start Listening
-              </Link>
-              <Link href="/sign-in" className="button-secondary">
-                <UploadIcon className="h-4 w-4" />
-                Submit a Track
-              </Link>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="surface-card-soft p-4">
-                <p className="text-2xl font-semibold text-white">1,000+</p>
-                <p className="mt-1 text-sm text-slate-400">
-                  independent artists already cycling credits
-                </p>
-              </div>
-              <div className="surface-card-soft p-4">
-                <p className="text-2xl font-semibold text-white">30s</p>
-                <p className="mt-1 text-sm text-slate-400">
-                  minimum verified listen before rating unlocks
-                </p>
-              </div>
-              <div className="surface-card-soft p-4">
-                <p className="text-2xl font-semibold text-white">4.8/5</p>
-                <p className="mt-1 text-sm text-slate-400">
-                  average session quality from creator feedback
-                </p>
-              </div>
-            </div>
+            {/* Pink donut decoration */}
+            <div
+              className="mt-2 shrink-0 rounded-full border-hp bg-transparent"
+              style={{
+                width: 'clamp(5rem, 11vw, 9.5rem)',
+                height: 'clamp(5rem, 11vw, 9.5rem)',
+                borderWidth: 'clamp(10px, 2.2vw, 20px)',
+                borderStyle: 'solid',
+                borderColor: '#FF1E7A',
+              }}
+              aria-hidden
+            />
           </div>
 
-          <HeroVisualization />
-        </div>
-      </section>
+          {/* Divider */}
+          <div className="my-8 h-px bg-black/15" />
 
-      <section id="how-it-works" className="section-shell relative z-10 mt-24 space-y-8">
-        <div className="max-w-2xl space-y-3">
-          <span className="eyebrow-badge">How it works</span>
-          <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-            A clean exchange loop built for creators
-          </h2>
-          <p className="text-base leading-7 text-slate-400">
-            No ad auctions, no shady play farms. Just a transparent system where
-            listening funds discovery.
-          </p>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-3">
-          {steps.map((step, index) => {
-            const Icon = step.icon
-            return (
-              <div
-                key={step.title}
-                className="surface-card group p-6 transition duration-300 hover:-translate-y-1.5 hover:border-brand-400/18"
+          {/* Subtext + CTA */}
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-sm text-sm leading-7 text-black/70">
+              Real curators. Honest feedback. Your music heard by someone whose
+              reputation is on the line.
+            </p>
+            <div className="flex flex-col items-start gap-2 sm:items-end">
+              <Link
+                href="/sign-up"
+                className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-transparent px-6 py-3 text-sm font-bold text-black transition hover:bg-black hover:text-acid"
               >
-                <div className="mb-8 flex items-center justify-between">
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-brand-300">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <span className="text-xs uppercase tracking-[0.26em] text-slate-500">
-                    Step 0{index + 1}
-                  </span>
-                </div>
-                <h3 className="text-xl font-semibold text-white">{step.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-slate-400">
-                  {step.description}
-                </p>
-                <div className="mt-6 inline-flex rounded-full border border-brand-400/15 bg-brand-500/10 px-3 py-1 text-xs font-medium text-brand-300">
-                  {step.stat}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </section>
-
-      <section className="section-shell relative z-10 mt-24">
-        <div className="surface-card grid gap-8 p-8 lg:grid-cols-[1.05fr_0.95fr] lg:p-10">
-          <div className="space-y-5">
-            <span className="eyebrow-badge">
-              <UserGroupIcon className="h-4 w-4" />
-              Used by 1,000+ independent artists
-            </span>
-            <div className="space-y-3">
-              <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                Social proof that feels like product proof
-              </h2>
-              <p className="max-w-2xl text-base leading-7 text-slate-400">
-                The best creator growth loop is one you can see. These sample
-                sessions mirror the kind of transparent activity artists expect.
+                Pitch your track &rarr;
+              </Link>
+              <p className="text-xs text-black/50">
+                One track &middot; No commitment &middot;{' '}
+                <span className="text-hp font-semibold">From 10 credits</span>
               </p>
             </div>
+          </div>
+        </div>
+      </section>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              {showcaseTracks.map((track) => (
-                <div
-                  key={track.title}
-                  className="rounded-[1.35rem] border border-white/8 bg-slate-950/60 p-4"
-                >
-                  <p className="text-sm font-semibold text-white">{track.title}</p>
-                  <p className="mt-1 text-sm text-slate-400">{track.artist}</p>
-                  <div className="mt-5 flex items-center justify-between text-xs text-slate-500">
-                    <span>{track.listens}</span>
-                    <span className="text-brand-300">{track.rating}</span>
-                  </div>
-                </div>
-              ))}
+      {/* ── Pink marquee ────────────────────────────────────────────── */}
+      <Marquee text={TICKER_TEXT} bgClass="bg-hp" textClass="text-black" />
+
+      {/* ── Feature cards ───────────────────────────────────────────── */}
+      <section className="grid grid-cols-2 lg:grid-cols-4">
+        {featureCards.map((card) => (
+          <div
+            key={card.eyebrow}
+            className={`${card.bg} flex min-h-[380px] flex-col justify-between p-7 lg:min-h-[440px]`}
+          >
+            <p className={`text-[0.65rem] font-semibold uppercase tracking-[0.24em] ${card.eyebrowClass}`}>
+              {card.eyebrow}
+            </p>
+            <div>
+              <p
+                className={`font-black leading-tight tracking-tighter ${card.headlineClass}`}
+                style={{ fontSize: 'clamp(1.6rem, 3.5vw, 3rem)' }}
+              >
+                {card.headline.split('\n').map((line, i) => (
+                  <span key={i} className="block">{line}</span>
+                ))}
+              </p>
+              <p className={`mt-4 text-sm leading-6 ${card.bodyClass}`}>
+                {card.body}
+              </p>
             </div>
           </div>
+        ))}
+      </section>
 
-          <div className="grid gap-4">
-            {testimonials.map((item) => (
-              <div
-                key={item.name}
-                className="rounded-[1.5rem] border border-white/8 bg-slate-950/55 p-6"
+      {/* ── Curator cards ───────────────────────────────────────────── */}
+      <section className="bg-[#0D0D0D] px-6 py-16 md:px-10">
+        <div className="mx-auto grid max-w-7xl gap-4 md:grid-cols-2">
+          {curators.map((curator) => (
+            <div key={curator.initials} className={`${curator.bg} rounded-2xl p-8`}>
+              <div className="mb-5 flex items-center gap-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-acid text-xs font-black text-black">
+                  {curator.initials}
+                </div>
+                <div>
+                  <p className={`text-sm font-bold ${curator.nameClass}`}>{curator.name}</p>
+                  <p className={`text-xs ${curator.metaClass}`}>{curator.meta}</p>
+                </div>
+              </div>
+              <p
+                className={`font-black leading-tight tracking-tight ${curator.quoteClass}`}
+                style={{ fontSize: 'clamp(1.2rem, 2.5vw, 1.7rem)' }}
               >
-                <div className="mb-4 flex items-center gap-2 text-brand-300">
-                  <CheckIcon className="h-4 w-4" />
-                  <span className="text-xs uppercase tracking-[0.24em]">
-                    Trusted workflow
+                {curator.quote}
+              </p>
+              <div className="mt-6 flex flex-wrap gap-2">
+                {curator.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${curator.tagBg}`}
+                  >
+                    {tag}
                   </span>
-                </div>
-                <p className="text-lg leading-8 text-white">"{item.quote}"</p>
-                <div className="mt-6">
-                  <p className="font-medium text-white">{item.name}</p>
-                  <p className="text-sm text-slate-400">{item.role}</p>
-                </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── How it works ────────────────────────────────────────────── */}
+      <section className="bg-[#0A0A0A] px-6 py-16 md:px-10">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-8 md:grid-cols-3 md:divide-x md:divide-white/10">
+            {[
+              {
+                num: '01',
+                tag: 'Match',
+                title: 'Curators who know your world',
+                body: 'Genre, mood, audience. Matched before a note plays.',
+              },
+              {
+                num: '02',
+                tag: 'Listen',
+                title: 'Real attention. Real opinion.',
+                body: 'A focused session from someone with skin in the game.',
+              },
+              {
+                num: '03',
+                tag: 'Believe',
+                title: 'Earned. Never bought.',
+                body: 'Their name on it. Their call. That\'s the point.',
+              },
+            ].map((step) => (
+              <div key={step.num} className="md:px-10 first:md:pl-0 last:md:pr-0">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-white/30">
+                  {step.num} &mdash; {step.tag}
+                </p>
+                <p className="text-lg font-black leading-tight tracking-tight text-white">
+                  {step.title}
+                </p>
+                <p className="mt-3 text-sm leading-6 text-white/50">{step.body}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="features" className="section-shell relative z-10 mt-24 space-y-8">
-        <div className="max-w-2xl space-y-3">
-          <span className="eyebrow-badge">
-            <SparkIcon className="h-4 w-4" />
-            Feature set
-          </span>
-          <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-            Product mechanics designed to convert attention into growth
+      {/* ── Bottom CTA ──────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden bg-[#0A0A0A] px-6 py-20 md:px-10">
+        {/* Decorative donut */}
+        <div
+          className="absolute -right-16 top-1/2 -translate-y-1/2 rounded-full opacity-10"
+          style={{
+            width: 340,
+            height: 340,
+            border: '40px solid #FF1E7A',
+          }}
+          aria-hidden
+        />
+
+        <div className="relative mx-auto grid max-w-7xl items-center gap-12 md:grid-cols-2">
+          {/* Large type */}
+          <h2
+            className="font-black leading-[0.9] tracking-tighter"
+            style={{ fontSize: 'clamp(3rem, 8vw, 7rem)' }}
+          >
+            <span className="block text-acid">Influence</span>
+            <span className="block text-acid">is not</span>
+            <span className="block text-acid">for sale.</span>
+            <span className="block text-hp">Greatness</span>
+            <span className="block text-hp">earns it.</span>
           </h2>
-          <p className="text-base leading-7 text-slate-400">
-            SoundSwap is opinionated about the details that make a creator SaaS
-            feel trustworthy, fast, and repeatable.
-          </p>
-        </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {featureCards.map((feature) => {
-            const Icon = feature.icon
-            return (
-              <div
-                key={feature.title}
-                className="surface-card p-6 transition duration-300 hover:-translate-y-1 hover:border-white/15"
-              >
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-brand-300">
-                  <Icon className="h-5 w-5" />
-                </span>
-                <h3 className="mt-6 text-xl font-semibold text-white">
-                  {feature.title}
-                </h3>
-                <p className="mt-3 text-sm leading-7 text-slate-400">
-                  {feature.description}
-                </p>
-              </div>
-            )
-          })}
-        </div>
-      </section>
-
-      <section className="section-shell relative z-10 mt-24">
-        <div className="surface-card overflow-hidden px-8 py-12 text-center sm:px-12">
-          <div className="hero-orb left-12 top-12 h-40 w-40 bg-brand-500/12" />
-          <div className="hero-orb bottom-[-5rem] right-8 h-48 w-48 bg-sky-500/10" />
-          <div className="relative mx-auto max-w-3xl space-y-6">
-            <span className="eyebrow-badge">
-              <BoltIcon className="h-4 w-4" />
-              Ready to launch
-            </span>
-            <h2 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-              Start growing your music today
-            </h2>
-            <p className="text-base leading-8 text-slate-400 sm:text-lg">
-              Join the exchange, build credits through real listening, and put
-              every new release in front of creators who are actually engaged.
+          {/* Right copy */}
+          <div className="space-y-6">
+            <p className="text-base leading-7 text-white/60">
+              A curator who adds your track does it because they believe in it.
+              That&rsquo;s the only endorsement worth having.
             </p>
-            <div className="flex flex-col justify-center gap-3 sm:flex-row">
-              <Link href="/sign-up" className="button-primary">
-                Create your account
-              </Link>
-              <Link href="/sign-in" className="button-secondary">
-                Explore the dashboard
-                <ArrowUpRightIcon className="h-4 w-4" />
-              </Link>
-            </div>
+            <p className="text-sm font-semibold text-hp">
+              From 10 credits &middot; No commitment
+            </p>
+            <Link
+              href="/sign-up"
+              className="inline-flex items-center gap-2 rounded-full border-2 border-acid bg-transparent px-7 py-3.5 text-sm font-bold text-acid transition hover:bg-acid hover:text-black"
+            >
+              Pitch your track &rarr;
+            </Link>
           </div>
         </div>
       </section>
-    </main>
+
+      {/* ── Checklist banner ────────────────────────────────────────── */}
+      <div className="bg-hp px-6 py-5 md:px-10">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-8 gap-y-3">
+          {[
+            { text: 'Human ears', check: true },
+            { text: 'Curator feedback', check: true },
+            { text: 'Rated curators only', check: true },
+            { text: "No guaranteed placement. That's the point.", check: false },
+          ].map(({ text, check }) => (
+            <div key={text} className="flex items-center gap-2">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black/20 text-[10px] font-black text-black">
+                {check ? '✓' : '✗'}
+              </span>
+              <span className="text-xs font-semibold text-black">{text}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Footer ──────────────────────────────────────────────────── */}
+      <footer className="bg-[#0A0A0A]">
+        <div className="flex items-center justify-between border-b border-white/8 px-6 py-5 md:px-10">
+          <Link href="/" className="inline-flex items-center gap-0.5 text-lg font-bold tracking-tight text-white">
+            Sound<span className="text-acid">Swap</span>
+          </Link>
+          <div className="flex gap-4 text-xs text-white/30">
+            <Link href="/sign-in" className="hover:text-white transition">Sign in</Link>
+            <Link href="/sign-up" className="hover:text-white transition">Get started</Link>
+          </div>
+        </div>
+        <Marquee
+          text={FOOTER_TICKER}
+          bgClass="bg-[#0A0A0A]"
+          textClass="text-white/20"
+          speed="slow"
+        />
+      </footer>
+    </div>
   )
 }

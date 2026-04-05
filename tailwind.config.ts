@@ -20,6 +20,20 @@ const config: Config = {
           600: '#16a34a',
           700: '#15803d',
         },
+        // Public homepage accent palette
+        acid: '#CCFF00',
+        hp: '#FF1E7A',
+        cobalt: '#3850FF',
+      },
+      animation: {
+        marquee: 'marquee 26s linear infinite',
+        'marquee-slow': 'marquee 42s linear infinite',
+      },
+      keyframes: {
+        marquee: {
+          from: { transform: 'translateX(0)' },
+          to: { transform: 'translateX(-50%)' },
+        },
       },
       fontFamily: {
         sans: ['var(--font-inter)', ...defaultTheme.fontFamily.sans],
