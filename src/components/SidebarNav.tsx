@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { SignOutButton } from '@clerk/nextjs'
 import {
   DashboardIcon,
   HeadphonesIcon,
@@ -99,6 +100,24 @@ export default function SidebarNav({
           </Link>
         )
       })}
+
+      {orientation === 'vertical' && (
+        <SignOutButton redirectUrl="/">
+          <button className="group mt-2 flex w-full items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 text-slate-400 transition duration-200 hover:border-white/10 hover:bg-white/[0.05] hover:text-slate-200">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-slate-400 transition group-hover:border-white/15 group-hover:text-slate-200">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </span>
+            <span className="flex flex-col text-left">
+              <span className="text-sm font-medium">Sign out</span>
+              <span className="text-xs text-slate-500">End session</span>
+            </span>
+          </button>
+        </SignOutButton>
+      )}
     </nav>
   )
 }
