@@ -21,9 +21,9 @@ const config: Config = {
           700: '#15803d',
         },
         // Public homepage accent palette
-        acid: '#CCFF00',
-        hp: '#FF1E7A',
-        cobalt: '#3850FF',
+        acid: '#C8F000',
+        hp: '#FF2D6B',
+        cobalt: '#3B5BFF',
       },
       animation: {
         marquee: 'marquee 26s linear infinite',

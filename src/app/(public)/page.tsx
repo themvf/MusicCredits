@@ -3,13 +3,25 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 
-// ─── Marquee strip ────────────────────────────────────────────────────────────
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const NEAR_BLACK = '#0D0D0D'
+const ACID = '#C8F000'
 
 const TICKER_TEXT =
   'REAL EARS \u2666 HONEST FEEDBACK \u2666 TASTE NOT TRANSACTIONS \u2666 INFLUENCE IS EARNED \u2666 REAL EARS \u2666 HONEST FEEDBACK \u2666 TASTE NOT TRANSACTIONS \u2666 INFLUENCE IS EARNED \u2666 '
 
 const FOOTER_TICKER =
   'INFLUENCE IS NOT FOR SALE \u00B7 GREATNESS EARNS IT \u00B7 \u2666 INFLUENCE IS NOT FOR SALE \u00B7 GREATNESS EARNS IT \u00B7 \u2666 INFLUENCE IS NOT FOR SALE \u00B7 GREATNESS EARNS IT \u00B7 \u2666 '
+
+// Outlined text: text color matches the acid background so only the shadow stroke
+// shows — works in every browser without -webkit-text-stroke.
+const OUTLINE_STYLE: React.CSSProperties = {
+  color: ACID,
+  textShadow: `-3px -3px 0 ${NEAR_BLACK}, 3px -3px 0 ${NEAR_BLACK}, -3px 3px 0 ${NEAR_BLACK}, 3px 3px 0 ${NEAR_BLACK}`,
+}
+
+// ─── Marquee ─────────────────────────────────────────────────────────────────
 
 function Marquee({
   text,
@@ -24,34 +36,19 @@ function Marquee({
 }) {
   return (
     <div className={`overflow-hidden ${bgClass} py-3`}>
-      <div
-        className={`flex whitespace-nowrap ${speed === 'slow' ? 'animate-marquee-slow' : 'animate-marquee'}`}
-      >
-        <span className={`px-6 text-xs font-bold tracking-[0.22em] uppercase ${textClass}`}>
-          {text}
-        </span>
-        <span
-          aria-hidden
-          className={`px-6 text-xs font-bold tracking-[0.22em] uppercase ${textClass}`}
-        >
-          {text}
-        </span>
+      <div className={`flex whitespace-nowrap ${speed === 'slow' ? 'animate-marquee-slow' : 'animate-marquee'}`}>
+        <span className={`px-6 text-xs font-bold uppercase tracking-[0.22em] ${textClass}`}>{text}</span>
+        <span aria-hidden className={`px-6 text-xs font-bold uppercase tracking-[0.22em] ${textClass}`}>{text}</span>
       </div>
     </div>
   )
 }
 
-// ─── Sparkle icon ────────────────────────────────────────────────────────────
+// ─── Sparkle ─────────────────────────────────────────────────────────────────
 
 function Sparkle({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg
-      viewBox="0 0 40 40"
-      fill="currentColor"
-      aria-hidden="true"
-      className={className}
-      style={style}
-    >
+    <svg viewBox="0 0 40 40" fill="currentColor" aria-hidden="true" className={className} style={style}>
       <path d="M20 0 C20 0 21.5 14 26 18 C30 22 40 20 40 20 C40 20 30 21.5 26 26 C22 30 20 40 20 40 C20 40 18.5 30 14 26 C10 22 0 20 0 20 C0 20 10 18.5 14 14 C18 10 20 0 20 0Z" />
     </svg>
   )
@@ -91,7 +88,7 @@ const featureCards = [
     eyebrow: 'Curator Ratings',
     headline: 'Every curator rated.',
     body: 'Artists rate every session. Only the best curators stay on the platform.',
-    bg: 'bg-[#E8E8E8]',
+    bg: 'bg-acid',
     eyebrowClass: 'text-black/40',
     headlineClass: 'text-black',
     bodyClass: 'text-black/60',
@@ -120,7 +117,7 @@ const curators = [
     quote: '"I\'m not here to fill a playlist. I\'m here to be right."',
     tags: ['Indie', 'Alternative', 'Bedroom pop'],
     bg: 'bg-[#111111]',
-    tagBg: 'bg-white/8 text-white/70 border border-white/10',
+    tagBg: 'text-white/70 border border-white/10',
     quoteClass: 'text-white',
     metaClass: 'text-white/50',
     nameClass: 'text-white',
@@ -134,9 +131,10 @@ export default async function HomePage() {
   if (userId) redirect('/dashboard')
 
   return (
-    <div className="overflow-hidden">
+    // Outer wrapper: gap-[3px] with near-black bg creates the thin divider lines between sections
+    <div className="flex flex-col gap-[3px] bg-[#0D0D0D] overflow-hidden">
 
-      {/* ── Header ──────────────────────────────────────────────────── */}
+      {/* ── Header ────────────────────────────────────────────────────── */}
       <header className="bg-[#0A0A0A] px-6 py-4 md:px-10">
         <Link href="/" className="inline-flex items-center gap-0.5 text-xl font-bold tracking-tight text-white">
           Sound<span className="text-acid">Swap</span>
@@ -144,47 +142,51 @@ export default async function HomePage() {
       </header>
 
       {/* ── Hero ──────────────────────────────────────────────────────── */}
-      <section className="bg-acid px-6 pb-12 pt-10 md:px-10 lg:px-16">
+      <section className="bg-acid px-6 pb-10 pt-8 md:px-10 lg:px-16">
         <div className="mx-auto max-w-7xl">
           {/* Eyebrow */}
-          <p className="mb-6 text-xs font-semibold uppercase tracking-[0.28em] text-black/40">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.28em] text-black/40">
             Artist &amp; Curator Network &middot; 2026
           </p>
 
-          {/* Headline */}
+          {/* Headline row: text left, donut right */}
           <div className="flex items-start justify-between gap-4">
-            <h1 className="font-black leading-[0.92] tracking-tighter text-black"
-                style={{ fontSize: 'clamp(3.4rem, 9.5vw, 8.5rem)' }}>
+            <h1
+              className="flex-1 min-w-0 font-black leading-[0.92] tracking-tighter text-black"
+              style={{ fontSize: 'clamp(3.2rem, 9vw, 8.5rem)' }}
+            >
               <span className="flex items-center gap-3">
                 Influence
-                <Sparkle className="text-black" style={{ width: 'clamp(1.4rem, 3.5vw, 3rem)', height: 'clamp(1.4rem, 3.5vw, 3rem)' } as React.CSSProperties} />
+                <Sparkle
+                  className="text-black shrink-0"
+                  style={{ width: 'clamp(1.2rem, 3vw, 2.8rem)', height: 'clamp(1.2rem, 3vw, 2.8rem)' }}
+                />
               </span>
               <span>
                 is <span className="text-hp">earned.</span>
               </span>
               <span className="block">By</span>
-              <span className="text-outline block text-black">greatness.</span>
+              {/* Outlined "greatness." via text-shadow — cross-browser reliable */}
+              <span className="block" style={OUTLINE_STYLE}>greatness.</span>
             </h1>
 
-            {/* Pink donut decoration */}
+            {/* Pink donut */}
             <div
-              className="mt-2 shrink-0 rounded-full border-hp bg-transparent"
+              className="mt-1 hidden shrink-0 rounded-full sm:block"
               style={{
-                width: 'clamp(5rem, 11vw, 9.5rem)',
-                height: 'clamp(5rem, 11vw, 9.5rem)',
-                borderWidth: 'clamp(10px, 2.2vw, 20px)',
-                borderStyle: 'solid',
-                borderColor: '#FF1E7A',
+                width: 'clamp(4.5rem, 10vw, 9rem)',
+                height: 'clamp(4.5rem, 10vw, 9rem)',
+                border: `clamp(10px, 2vw, 18px) solid #FF2D6B`,
               }}
               aria-hidden
             />
           </div>
 
           {/* Divider */}
-          <div className="my-8 h-px bg-black/15" />
+          <div className="my-6 h-px bg-black/15" />
 
           {/* Subtext + CTA */}
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <p className="max-w-sm text-sm leading-7 text-black/70">
               Real curators. Honest feedback. Your music heard by someone whose
               reputation is on the line.
@@ -198,7 +200,7 @@ export default async function HomePage() {
               </Link>
               <p className="text-xs text-black/50">
                 One track &middot; No commitment &middot;{' '}
-                <span className="text-hp font-semibold">From 10 credits</span>
+                <span className="font-semibold text-hp">From 10 credits</span>
               </p>
             </div>
           </div>
@@ -208,8 +210,10 @@ export default async function HomePage() {
       {/* ── Pink marquee ────────────────────────────────────────────── */}
       <Marquee text={TICKER_TEXT} bgClass="bg-hp" textClass="text-black" />
 
-      {/* ── Feature cards ───────────────────────────────────────────── */}
-      <section className="grid grid-cols-2 lg:grid-cols-4">
+      {/* ── Feature cards — gap-[3px] between columns ─────────────── */}
+      <section
+        className="grid grid-cols-2 gap-[3px] bg-[#0D0D0D] lg:grid-cols-4"
+      >
         {featureCards.map((card) => (
           <div
             key={card.eyebrow}
@@ -235,45 +239,43 @@ export default async function HomePage() {
         ))}
       </section>
 
-      {/* ── Curator cards ───────────────────────────────────────────── */}
-      <section className="bg-[#0D0D0D] px-6 py-16 md:px-10">
-        <div className="mx-auto grid max-w-7xl gap-4 md:grid-cols-2">
-          {curators.map((curator) => (
-            <div key={curator.initials} className={`${curator.bg} rounded-2xl p-8`}>
-              <div className="mb-5 flex items-center gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-acid text-xs font-black text-black">
-                  {curator.initials}
-                </div>
-                <div>
-                  <p className={`text-sm font-bold ${curator.nameClass}`}>{curator.name}</p>
-                  <p className={`text-xs ${curator.metaClass}`}>{curator.meta}</p>
-                </div>
+      {/* ── Curator cards — edge-to-edge, 3px gap ─────────────────── */}
+      <section className="grid gap-[3px] bg-[#0D0D0D] md:grid-cols-2">
+        {curators.map((curator) => (
+          <div key={curator.initials} className={`${curator.bg} p-8`}>
+            <div className="mb-5 flex items-center gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-acid text-xs font-black text-black">
+                {curator.initials}
               </div>
-              <p
-                className={`font-black leading-tight tracking-tight ${curator.quoteClass}`}
-                style={{ fontSize: 'clamp(1.2rem, 2.5vw, 1.7rem)' }}
-              >
-                {curator.quote}
-              </p>
-              <div className="mt-6 flex flex-wrap gap-2">
-                {curator.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${curator.tagBg}`}
-                  >
-                    {tag}
-                  </span>
-                ))}
+              <div>
+                <p className={`text-sm font-bold ${curator.nameClass}`}>{curator.name}</p>
+                <p className={`text-xs ${curator.metaClass}`}>{curator.meta}</p>
               </div>
             </div>
-          ))}
-        </div>
+            <p
+              className={`font-black leading-tight tracking-tight ${curator.quoteClass}`}
+              style={{ fontSize: 'clamp(1.2rem, 2.5vw, 1.7rem)' }}
+            >
+              {curator.quote}
+            </p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {curator.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${curator.tagBg}`}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
       </section>
 
-      {/* ── How it works ────────────────────────────────────────────── */}
-      <section className="bg-[#0A0A0A] px-6 py-16 md:px-10">
+      {/* ── How it works — tight band ────────────────────────────── */}
+      <section className="bg-[#0A0A0A] px-6 py-8 md:px-10">
         <div className="mx-auto max-w-7xl">
-          <div className="grid gap-8 md:grid-cols-3 md:divide-x md:divide-white/10">
+          <div className="grid gap-6 md:grid-cols-3 md:gap-0 md:divide-x md:divide-white/10">
             {[
               {
                 num: '01',
@@ -291,7 +293,7 @@ export default async function HomePage() {
                 num: '03',
                 tag: 'Believe',
                 title: 'Earned. Never bought.',
-                body: 'Their name on it. Their call. That\'s the point.',
+                body: "Their name on it. Their call. That's the point.",
               },
             ].map((step) => (
               <div key={step.num} className="md:px-10 first:md:pl-0 last:md:pr-0">
@@ -308,24 +310,20 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── Bottom CTA ──────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-[#0A0A0A] px-6 py-20 md:px-10">
+      {/* ── Manifesto CTA ─────────────────────────────────────────── */}
+      <section className="relative overflow-hidden bg-[#0A0A0A] px-6 py-12 md:px-10">
         {/* Decorative donut */}
         <div
           className="absolute -right-16 top-1/2 -translate-y-1/2 rounded-full opacity-10"
-          style={{
-            width: 340,
-            height: 340,
-            border: '40px solid #FF1E7A',
-          }}
+          style={{ width: 340, height: 340, border: '40px solid #FF2D6B' }}
           aria-hidden
         />
 
-        <div className="relative mx-auto grid max-w-7xl items-center gap-12 md:grid-cols-2">
+        <div className="relative mx-auto grid max-w-7xl items-center gap-8 md:grid-cols-2">
           {/* Large type */}
           <h2
             className="font-black leading-[0.9] tracking-tighter"
-            style={{ fontSize: 'clamp(3rem, 8vw, 7rem)' }}
+            style={{ fontSize: 'clamp(2.8rem, 7.5vw, 7rem)' }}
           >
             <span className="block text-acid">Influence</span>
             <span className="block text-acid">is not</span>
@@ -335,7 +333,7 @@ export default async function HomePage() {
           </h2>
 
           {/* Right copy */}
-          <div className="space-y-6">
+          <div className="space-y-5">
             <p className="text-base leading-7 text-white/60">
               A curator who adds your track does it because they believe in it.
               That&rsquo;s the only endorsement worth having.
@@ -353,7 +351,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── Checklist banner ────────────────────────────────────────── */}
+      {/* ── Promise strip ─────────────────────────────────────────── */}
       <div className="bg-hp px-6 py-5 md:px-10">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-8 gap-y-3">
           {[
@@ -363,7 +361,24 @@ export default async function HomePage() {
             { text: "No guaranteed placement. That's the point.", check: false },
           ].map(({ text, check }) => (
             <div key={text} className="flex items-center gap-2">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black/20 text-[10px] font-black text-black">
+              {/* Fixed-size icon — explicit dimensions ensure cross-browser consistency */}
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  background: 'rgba(0,0,0,0.22)',
+                  fontSize: 12,
+                  fontWeight: 900,
+                  lineHeight: 1,
+                  color: NEAR_BLACK,
+                  flexShrink: 0,
+                  fontFamily: 'monospace',
+                }}
+              >
                 {check ? '✓' : '✗'}
               </span>
               <span className="text-xs font-semibold text-black">{text}</span>
@@ -372,24 +387,20 @@ export default async function HomePage() {
         </div>
       </div>
 
-      {/* ── Footer ──────────────────────────────────────────────────── */}
+      {/* ── Footer ────────────────────────────────────────────────── */}
       <footer className="bg-[#0A0A0A]">
         <div className="flex items-center justify-between border-b border-white/8 px-6 py-5 md:px-10">
           <Link href="/" className="inline-flex items-center gap-0.5 text-lg font-bold tracking-tight text-white">
             Sound<span className="text-acid">Swap</span>
           </Link>
           <div className="flex gap-4 text-xs text-white/30">
-            <Link href="/sign-in" className="hover:text-white transition">Sign in</Link>
-            <Link href="/sign-up" className="hover:text-white transition">Get started</Link>
+            <Link href="/sign-in" className="transition hover:text-white">Sign in</Link>
+            <Link href="/sign-up" className="transition hover:text-white">Get started</Link>
           </div>
         </div>
-        <Marquee
-          text={FOOTER_TICKER}
-          bgClass="bg-[#0A0A0A]"
-          textClass="text-white/20"
-          speed="slow"
-        />
+        <Marquee text={FOOTER_TICKER} bgClass="bg-[#0A0A0A]" textClass="text-white/20" speed="slow" />
       </footer>
+
     </div>
   )
 }
