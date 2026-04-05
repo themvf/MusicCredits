@@ -147,28 +147,22 @@ export default async function HomePage() {
       */}
       <section className="relative bg-acid px-6 pb-0 pt-8 md:px-10 lg:px-16">
 
-        {/* Option B stamp — hard-edge block, top-right */}
-        <div
-          className="absolute right-10 top-10 hidden sm:block"
-          style={{
-            background: '#FF2D6B',
-            padding: '14px 18px',
-            border: `2px solid ${NEAR_BLACK}`,
-            zIndex: 2,
-          }}
+        {/* Starburst stamp — positioned absolutely, hidden on small screens */}
+        <svg
+          width="130"
+          height="130"
+          viewBox="0 0 130 130"
+          className="absolute hidden sm:block"
+          style={{ top: 40, right: 40, zIndex: 2 }}
           aria-hidden
         >
-          <div style={{
-            fontSize: 11,
-            letterSpacing: '2px',
-            textTransform: 'uppercase',
-            color: ACID,
-            fontWeight: 600,
-            lineHeight: 1.6,
-          }}>
-            Curators<br />not<br />algorithms
-          </div>
-        </div>
+          <polygon
+            points="65,2 72,48 110,20 82,58 128,58 90,78 118,108 72,88 78,128 55,94 32,128 38,88 2,108 30,78 2,58 48,58 20,20 58,48"
+            fill="#FF2D6B"
+          />
+          <text x="65" y="60" textAnchor="middle" fontSize="9" fontWeight="500" fill={ACID} fontFamily="sans-serif" letterSpacing="1">TASTE NOT</text>
+          <text x="65" y="74" textAnchor="middle" fontSize="9" fontWeight="500" fill={ACID} fontFamily="sans-serif" letterSpacing="1">TRANSACTIONS</text>
+        </svg>
 
         <div className="mx-auto max-w-7xl">
           {/* Eyebrow */}
@@ -222,29 +216,78 @@ export default async function HomePage() {
 
       {/* ── Feature cards — gap-[3px] between columns ─────────────── */}
       <section className="grid grid-cols-2 gap-[3px] bg-[#0D0D0D] lg:grid-cols-4">
-        {featureCards.map((card) => (
-          <div
-            key={card.eyebrow}
-            // justify-start + gap-3: label and headline pinned to top; body pushed to bottom via mt-auto
-            className={`${card.bg} flex min-h-[380px] flex-col items-start gap-3 p-7 lg:min-h-[440px]`}
-          >
-            <p className={`text-[0.65rem] font-semibold uppercase tracking-[0.24em] ${card.eyebrowClass}`}>
-              {card.eyebrow}
+        {/* Card 1 — Real Listen */}
+        <div className="bg-hp flex min-h-[380px] flex-col justify-between p-7 lg:min-h-[440px]">
+          <div>
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.24em] text-black/50">Real Listen</p>
+            <p className="mt-3 font-black leading-tight tracking-tighter text-white" style={{ fontSize: 'clamp(1.6rem, 3.5vw, 3rem)' }}>
+              <span className="block">Human ears.</span>
+              <span className="block">Every time.</span>
             </p>
-            <p
-              className={`font-black leading-tight tracking-tighter ${card.headlineClass}`}
-              style={{ fontSize: 'clamp(1.6rem, 3.5vw, 3rem)' }}
-            >
-              {card.headline.split('\n').map((line, i) => (
-                <span key={i} className="block">{line}</span>
-              ))}
-            </p>
-            {/* mt-auto pushes body to bottom of card */}
-            <p className={`mt-auto text-sm leading-6 ${card.bodyClass}`}>
-              {card.body}
-            </p>
+            <svg viewBox="0 0 200 80" width="100%" aria-hidden style={{ display: 'block', margin: '16px 0' }}>
+              <rect x="0" y="20" width="180" height="18" fill="#C8F000" />
+              <rect x="20" y="46" width="140" height="18" fill="#C8F000" opacity="0.5" />
+            </svg>
           </div>
-        ))}
+          <p className="text-sm leading-6 text-white/70">Not an algorithm. Not a bot. A real person in your genre who actually cares.</p>
+        </div>
+
+        {/* Card 2 — Curator Feedback */}
+        <div className="bg-[#0A0A0A] flex min-h-[380px] flex-col justify-between p-7 lg:min-h-[440px]">
+          <div>
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.24em] text-white/40">Curator Feedback</p>
+            <p className="mt-3 font-black leading-tight tracking-tighter text-hp" style={{ fontSize: 'clamp(1.6rem, 3.5vw, 3rem)' }}>
+              <span className="block">Their take.</span>
+              <span className="block">Unfiltered.</span>
+            </p>
+            <svg viewBox="0 0 200 80" width="100%" aria-hidden style={{ display: 'block', margin: '16px 0' }}>
+              <circle cx="40" cy="40" r="36" fill="none" stroke="#FF2D6B" strokeWidth="8" />
+              <circle cx="40" cy="40" r="18" fill="#FF2D6B" />
+              <rect x="90" y="10" width="12" height="60" fill="#FF2D6B" opacity="0.4" />
+              <rect x="110" y="24" width="12" height="46" fill="#FF2D6B" opacity="0.7" />
+              <rect x="130" y="16" width="12" height="54" fill="#FF2D6B" />
+            </svg>
+          </div>
+          <p className="text-sm leading-6 text-white/50">Straight from the curator. What they heard. What they felt. What it means for your music.</p>
+        </div>
+
+        {/* Card 3 — Placement */}
+        <div className="bg-cobalt flex min-h-[380px] flex-col justify-between p-7 lg:min-h-[440px]">
+          <div>
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.24em] text-white/50">Placement</p>
+            <p className="mt-3 font-black leading-tight tracking-tighter text-white" style={{ fontSize: 'clamp(1.6rem, 3.5vw, 3rem)' }}>
+              <span className="block">Earned.</span>
+              <span className="block">Never bought.</span>
+            </p>
+            <svg viewBox="0 0 200 80" width="100%" aria-hidden style={{ display: 'block', margin: '16px 0' }}>
+              <polygon points="0,70 40,10 80,70" fill="#C8F000" />
+              <polygon points="60,70 100,10 140,70" fill="#C8F000" opacity="0.4" />
+              <polygon points="120,70 160,10 200,70" fill="#C8F000" opacity="0.2" />
+            </svg>
+          </div>
+          <p className="text-sm leading-6 text-white/70">Reputation on the line. Their name on it. Their call alone.</p>
+        </div>
+
+        {/* Card 4 — Curator Ratings */}
+        <div className="bg-acid flex min-h-[380px] flex-col justify-between p-7 lg:min-h-[440px]">
+          <div>
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.24em] text-black/40">Curator Ratings</p>
+            <p className="mt-3 font-black leading-tight tracking-tighter text-black" style={{ fontSize: 'clamp(1.6rem, 3.5vw, 3rem)' }}>
+              <span className="block">Every curator</span>
+              <span className="block">rated.</span>
+            </p>
+            <svg viewBox="0 0 200 60" width="100%" aria-hidden style={{ display: 'block', margin: '16px 0' }}>
+              <defs>
+                <clipPath id="clip4">
+                  <rect x="0" y="0" width="170" height="60" />
+                </clipPath>
+              </defs>
+              <text x="0" y="52" fontSize="56" fontWeight="700" fill="#0D0D0D" opacity="0.12" fontFamily="sans-serif">★★★★★</text>
+              <text x="0" y="52" fontSize="56" fontWeight="700" fill="#0D0D0D" fontFamily="sans-serif" clipPath="url(#clip4)">★★★★★</text>
+            </svg>
+          </div>
+          <p className="text-sm leading-6 text-black/60">Artists rate every session. Only the best curators stay on the platform.</p>
+        </div>
       </section>
 
       {/* ── Curator cards — edge-to-edge, 3px gap ─────────────────── */}
