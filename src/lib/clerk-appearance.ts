@@ -12,7 +12,7 @@ export const clerkAppearance = {
   },
   elements: {
     rootBox: 'w-full',
-    cardBox: 'w-full shadow-none',
+    cardBox: 'shadow-none',
     card: 'border border-white/8 bg-[#111111]',
     headerTitle: 'text-2xl font-black tracking-tight text-white',
     headerSubtitle: 'text-sm text-white/40',
