@@ -27,7 +27,7 @@ const artistNavItems = [
 
 const curatorNavItems = [
   { href: '/dashboard', label: 'Dashboard', detail: 'Overview', icon: DashboardIcon },
-  { href: '/listen', label: 'Review Queue', detail: 'Listen', icon: HeadphonesIcon },
+  { href: '/review', label: 'Review Queue', detail: 'Listen', icon: HeadphonesIcon },
   { href: '/earnings', label: 'Earnings', detail: 'Credits', icon: WalletIcon },
 ] as const
 

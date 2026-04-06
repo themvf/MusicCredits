@@ -715,6 +715,50 @@ export async function fetchSpotifyTrackPreviewByUrl(
   return fetchSpotifyTrackPreview(spotifyTrackId)
 }
 
+export interface SpotifyPlaylistApplicationResult {
+  playlistId: string
+  playlistName: string
+  followerCount: number
+}
+
+/**
+ * Fetches a Spotify playlist's name and follower count using the app
+ * (client credentials) token — no user OAuth required.
+ * Used exclusively by the curator application submission endpoint to
+ * check the follower threshold without exposing user tokens.
+ *
+ * Returns null if the playlist is private or inaccessible (404/403).
+ * Throws ApiRouteError for other failures.
+ */
+export async function fetchPlaylistForCuratorApplication(
+  playlistUrl: string
+): Promise<SpotifyPlaylistApplicationResult | null> {
+  const { extractSpotifyPlaylistId } = await import('@/lib/spotify')
+  const playlistId = extractSpotifyPlaylistId(playlistUrl)
+  if (!playlistId) {
+    throw new ApiRouteError(400, 'Must be a valid Spotify playlist URL (https://open.spotify.com/playlist/...)')
+  }
+
+  const accessToken = await getSpotifyAppAccessToken()
+
+  try {
+    const data = await fetchSpotifyJson<SpotifyPlaylistDetail>(
+      accessToken,
+      `/playlists/${playlistId}?fields=id,name,followers(total),tracks(total),external_urls(spotify)`
+    )
+    return {
+      playlistId: data.id,
+      playlistName: data.name,
+      followerCount: data.followers?.total ?? 0,
+    }
+  } catch (err) {
+    if (err instanceof ApiRouteError && (err.status === 404 || err.status === 403)) {
+      return null
+    }
+    throw err
+  }
+}
+
 export async function searchSpotifyArtists(query: string): Promise<SpotifyArtistResult[]> {
   const accessToken = await getSpotifyAppAccessToken()
   const encoded = encodeURIComponent(query)

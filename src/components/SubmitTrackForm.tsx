@@ -5,27 +5,7 @@ import { useRouter } from 'next/navigation'
 import { BoltIcon, SparkIcon, UploadIcon } from '@/components/AppIcons'
 import StatusToast from '@/components/StatusToast'
 import { extractSpotifyTrackId, SPOTIFY_TRACK_URL_REGEX } from '@/lib/spotify'
-
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-const GENRES = [
-  'Pop',
-  'Hip-Hop / Rap',
-  'R&B / Soul',
-  'Electronic / Dance',
-  'Rock',
-  'Alternative / Indie',
-  'Latin',
-  'Afrobeats',
-  'Jazz',
-  'Classical',
-  'Country',
-  'Folk / Singer-Songwriter',
-  'Metal',
-  'Reggae / Dancehall',
-  'Gospel / Christian',
-  'Other',
-]
+import { GENRES } from '@/lib/genres'
 
 const MOODS = [
   'Energetic',

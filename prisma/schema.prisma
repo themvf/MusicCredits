@@ -97,18 +97,19 @@ model Track {
 }
 
 model ListeningSession {
-  id                 String       @id @default(cuid())
+  id                 String         @id @default(cuid())
   userId             String
   trackId            String
-  startedAt          DateTime     @default(now())
-  activeListenTimeMs Int          @default(0)
-  completed          Boolean      @default(false)
-  user               User         @relation(fields: [userId], references: [id])
-  // Cascade: deleting a track removes its sessions
-  track              Track        @relation("TrackSessions", fields: [trackId], references: [id], onDelete: Cascade)
-  // Cascade: deleting a session removes its rating and listen event
+  startedAt          DateTime       @default(now())
+  activeListenTimeMs Int            @default(0)
+  completed          Boolean        @default(false)
+  isCuratorReview    Boolean        @default(false)
+  playlistAdded      Boolean        @default(false)
+  user               User           @relation(fields: [userId], references: [id])
+  track              Track          @relation("TrackSessions", fields: [trackId], references: [id], onDelete: Cascade)
   rating             Rating?
   listenEvent        ListenEvent?
+  curatorReview      CuratorReview?
 
   @@unique([userId, trackId])
 }
@@ -138,6 +139,20 @@ model Rating {
   createdAt DateTime         @default(now())
   // Cascade: deleting a session removes its rating
   session   ListeningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+// Rich feedback left by an approved curator on a curator review session.
+// Separate from Rating (which is the artist listen economy rating).
+model CuratorReview {
+  id               String           @id @default(cuid())
+  sessionId        String           @unique
+  productionScore  Int              // 1-5
+  genreFitScore    Int              // 1-5
+  overallScore     Int              // 1-5 — the score shown to the artist
+  notes            String?          // "What would you tell this artist?"
+  playlistDecision Boolean          // true = add to playlist, false = not this time
+  createdAt        DateTime         @default(now())
+  session          ListeningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
 model SpotifyAccount {
@@ -281,10 +296,15 @@ model CuratorApplication {
   id                   String                   @id @default(cuid())
   userId               String
   spotifyPlaylistId    String
+  // Fetched from Spotify at submission time
+  playlistName         String?
   // Populated by Spotify API call at submission time (server-side, client credentials)
   followerCountAtApply Int?
   thresholdMet         Boolean?
   spotifyCheckStatus   SpotifyCheckStatus?
+  // Form fields collected at submission
+  genres               String[]                 @default([])
+  motivation           String?
   status               CuratorApplicationStatus @default(pending)
   rejectionReason      String?
   // Set when application is approved; links to the CuratorProfile created in the same tx

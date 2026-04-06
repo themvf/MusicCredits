@@ -24,6 +24,11 @@ const serverEnvSchema = z.object({
     .string()
     .min(1, 'NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL is required'),
   SPOTIFY_PLATFORM_REFRESH_TOKEN: z.string().min(1).optional(),
+  // Transactional email — optional; emails are skipped gracefully when unset
+  RESEND_API_KEY: z.string().min(1).optional(),
+  RESEND_FROM_EMAIL: z.string().email().optional(),
+  // Base URL for email links — defaults to soundswap.fm if unset
+  APP_URL: z.string().url().optional(),
 })
 
 const parsedEnv = serverEnvSchema.safeParse({
@@ -41,6 +46,9 @@ const parsedEnv = serverEnvSchema.safeParse({
   NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL:
     process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL,
   SPOTIFY_PLATFORM_REFRESH_TOKEN: process.env.SPOTIFY_PLATFORM_REFRESH_TOKEN,
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
+  APP_URL: process.env.APP_URL,
 })
 
 if (!parsedEnv.success) {

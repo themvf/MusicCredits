@@ -15,6 +15,7 @@ import {
 } from '@/components/AppIcons'
 import { getAuthenticatedUser } from '@/lib/auth'
 import { getCreatorAnalytics } from '@/lib/creator-analytics'
+import CuratorApplicationCard from '@/components/CuratorApplicationCard'
 
 export default async function DashboardPage() {
   const user = await getAuthenticatedUser()
@@ -225,6 +226,8 @@ export default async function DashboardPage() {
             </p>
           </div>
           <ListeningHistory sessions={historyEntries} />
+          {/* Curator programme — visible to all artists */}
+          <CuratorApplicationCard userId={user.id} />
         </div>
       </div>
     </div>
