@@ -13,33 +13,17 @@ html {
 }
 
 body {
-  background:
-    radial-gradient(circle at top left, rgba(34, 197, 94, 0.16), transparent 26%),
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 28%),
-    linear-gradient(180deg, #020611 0%, #07111f 45%, #040913 100%);
+  background: #0D0D0D;
   @apply font-sans text-slate-100 antialiased;
 }
 
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(148, 163, 184, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.035) 1px, transparent 1px);
-  background-size: 72px 72px;
-  mask-image: radial-gradient(circle at center, black, transparent 90%);
-  opacity: 0.45;
-}
-
 * {
-  border-color: rgba(148, 163, 184, 0.12);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 ::selection {
-  background: rgba(34, 197, 94, 0.28);
-  color: #f8fafc;
+  background: rgba(200, 240, 0, 0.3);
+  color: #0D0D0D;
 }
 
 a,
@@ -61,36 +45,38 @@ button {
 }
 
 @layer components {
+  /* Flat dark card — no glassmorphism */
   .surface-card {
-    @apply rounded-[1.75rem] border border-white/10 bg-white/[0.045] shadow-[0_30px_80px_-40px_rgba(15,23,42,0.95)] backdrop-blur-2xl;
+    @apply rounded-2xl border border-white/8 bg-[#111111];
   }
 
   .surface-card-soft {
-    @apply rounded-[1.5rem] border border-white/10 bg-slate-950/55 shadow-[0_24px_70px_-40px_rgba(15,23,42,0.95)] backdrop-blur-xl;
+    @apply rounded-xl border border-white/6 bg-[#0D0D0D];
   }
 
   .hero-orb {
     @apply absolute rounded-full blur-3xl;
   }
 
+  /* Acid green primary button */
   .button-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-brand-400/10 bg-brand-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-[0_20px_60px_-25px_rgba(34,197,94,0.95)] transition duration-200 hover:-translate-y-0.5 hover:bg-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/40;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-acid px-5 py-3 text-sm font-bold text-[#0D0D0D] transition duration-200 hover:-translate-y-0.5 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-acid/40;
   }
 
   .button-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] px-5 py-3 text-sm font-semibold text-slate-100 transition duration-200 hover:-translate-y-0.5 hover:border-white/15 hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-white/10;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-transparent px-5 py-3 text-sm font-semibold text-white transition duration-200 hover:border-acid/50 hover:text-acid focus:outline-none focus:ring-2 focus:ring-acid/20;
   }
 
   .button-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-transparent px-4 py-2.5 text-sm font-medium text-slate-300 transition duration-200 hover:border-white/10 hover:bg-white/[0.045] hover:text-white;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-transparent px-4 py-2.5 text-sm font-medium text-white/50 transition duration-200 hover:text-white;
   }
 
   .eyebrow-badge {
-    @apply inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-[0.72rem] font-medium uppercase tracking-[0.28em] text-brand-300;
+    @apply inline-flex items-center gap-2 rounded-full border border-acid/25 bg-acid/8 px-4 py-2 text-[0.72rem] font-medium uppercase tracking-[0.28em] text-acid;
   }
 
   .metric-value {
-    @apply text-4xl font-semibold tracking-tight text-white sm:text-5xl;
+    @apply text-4xl font-black tracking-tight text-white sm:text-5xl;
   }
 
   .section-shell {

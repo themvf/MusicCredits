@@ -9,34 +9,28 @@ interface AppLogoProps {
 
 function LogoMark() {
   return (
-    <div className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10 shadow-[0_20px_50px_-30px_rgba(34,197,94,0.9)] backdrop-blur-xl">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,197,94,0.42),transparent_60%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(59,130,246,0.24),transparent_45%,rgba(34,197,94,0.18))]" />
-      <div className="relative flex items-end gap-1">
-        <span className="h-4 w-1 rounded-full bg-brand-300" />
-        <span className="h-6 w-1 rounded-full bg-brand-400" />
-        <span className="h-8 w-1 rounded-full bg-white" />
-        <span className="h-5 w-1 rounded-full bg-brand-400" />
+    <div className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-acid/20 bg-acid/8">
+      <div className="relative flex items-end gap-0.5">
+        <span className="h-3 w-1 rounded-full bg-acid/60" />
+        <span className="h-5 w-1 rounded-full bg-acid/80" />
+        <span className="h-7 w-1 rounded-full bg-acid" />
+        <span className="h-4 w-1 rounded-full bg-acid/70" />
       </div>
     </div>
   )
 }
 
-export default function AppLogo({
-  className,
-  href = '/',
-  markOnly = false,
-}: AppLogoProps) {
+export default function AppLogo({ className, href = '/', markOnly = false }: AppLogoProps) {
   const content = (
-    <span className={cn('inline-flex items-center gap-3', className)}>
+    <span className={cn('inline-flex items-center gap-2.5', className)}>
       <LogoMark />
       {!markOnly && (
         <span className="flex flex-col leading-none">
-          <span className="text-[0.72rem] uppercase tracking-[0.32em] text-slate-500">
+          <span className="text-[0.65rem] uppercase tracking-[0.32em] text-white/30">
             Creator Growth
           </span>
-          <span className="text-xl font-semibold tracking-tight text-white">
-            Sound<span className="text-brand-400">Swap</span>
+          <span className="text-lg font-bold tracking-tight text-white">
+            Sound<span className="text-acid">Swap</span>
           </span>
         </span>
       )}

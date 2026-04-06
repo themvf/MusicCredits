@@ -6,62 +6,55 @@ import SidebarNav from '@/components/SidebarNav'
 import { ArrowUpRightIcon, BoltIcon } from '@/components/AppIcons'
 import { clerkAppearance } from '@/lib/clerk-appearance'
 
-/**
- * Shared layout for all authenticated pages.
- * Shows the creator workspace shell used across all authenticated pages.
- */
 export default function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      <div className="hero-orb left-[-8rem] top-[-4rem] h-64 w-64 bg-brand-500/15" />
-      <div className="hero-orb bottom-[-10rem] right-[-5rem] h-72 w-72 bg-sky-500/10" />
-
+    <div className="min-h-screen bg-[#0D0D0D]">
       <div className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col md:flex-row">
-        <aside className="hidden w-[320px] shrink-0 p-6 md:block">
-          <div className="surface-card sticky top-6 flex h-[calc(100vh-3rem)] flex-col overflow-hidden p-6">
+
+        {/* Sidebar */}
+        <aside className="hidden w-[300px] shrink-0 md:block">
+          <div className="sticky top-0 flex h-screen flex-col border-r border-white/8 bg-[#111111] px-5 py-6">
+            {/* Logo + avatar */}
             <div className="flex items-center justify-between">
               <AppLogo href="/dashboard" />
-              <UserButton
-                afterSignOutUrl="/"
-                appearance={clerkAppearance}
-              />
+              <UserButton afterSignOutUrl="/" appearance={clerkAppearance} />
             </div>
 
-            <div className="mt-8">
+            {/* Nav */}
+            <div className="mt-8 flex-1">
               <SidebarNav />
             </div>
 
-            <div className="mt-auto space-y-4">
-              <div className="surface-card-soft p-5">
-                <div className="mb-4 flex items-center justify-between">
-                  <span className="eyebrow-badge px-3 py-1.5 normal-case tracking-[0.18em]">
-                    <BoltIcon className="h-4 w-4" />
+            {/* Credit panel */}
+            <div className="mt-auto border-t border-white/8 pt-5">
+              <div className="rounded-xl border border-white/8 bg-[#0D0D0D] p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-acid">
+                    <BoltIcon className="h-3.5 w-3.5" />
                     Live credits
                   </span>
-                  <Link
-                    href="/listen"
-                    className="button-ghost gap-1 px-0 py-0 text-xs"
-                  >
+                  <Link href="/listen" className="text-xs text-white/30 transition hover:text-acid flex items-center gap-1">
                     Queue
-                    <ArrowUpRightIcon className="h-3.5 w-3.5" />
+                    <ArrowUpRightIcon className="h-3 w-3" />
                   </Link>
                 </div>
                 <CreditBadge />
-                <p className="mt-4 text-sm leading-6 text-slate-400">
-                  Keep your balance moving: one completed listen funds the next
-                  promotion cycle.
+                <p className="mt-3 text-xs leading-5 text-white/30">
+                  One listen = one credit. Ten credits queues a track.
                 </p>
               </div>
             </div>
           </div>
         </aside>
 
+        {/* Main */}
         <div className="flex-1 px-4 pb-10 pt-4 sm:px-6 md:px-8 md:py-6">
-          <div className="surface-card mb-4 flex items-center justify-between gap-4 p-4 md:hidden">
+          {/* Mobile top bar */}
+          <div className="mb-4 flex items-center justify-between gap-4 border-b border-white/8 pb-4 md:hidden">
             <AppLogo href="/dashboard" />
             <div className="flex items-center gap-3">
               <CreditBadge />
@@ -69,6 +62,7 @@ export default function ProtectedLayout({
             </div>
           </div>
 
+          {/* Mobile nav */}
           <div className="mb-6 md:hidden">
             <SidebarNav orientation="horizontal" />
           </div>
