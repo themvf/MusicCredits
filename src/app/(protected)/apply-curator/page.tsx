@@ -17,7 +17,6 @@ export default async function ApplyCuratorPage() {
         status: true,
         rejectionReason: true,
         reviewedBy: true,
-        updatedAt: true,
         createdAt: true,
       },
     }),
@@ -26,13 +25,6 @@ export default async function ApplyCuratorPage() {
       select: { id: true },
     }),
   ])
-
-  let cooldownEndsAt: string | null = null
-  if (latestApplication?.status === 'rejected' && latestApplication.reviewedBy) {
-    const end = new Date(latestApplication.updatedAt)
-    end.setDate(end.getDate() + 30)
-    cooldownEndsAt = end.toISOString()
-  }
 
   return (
     <div className="mx-auto max-w-xl space-y-8">
@@ -51,7 +43,6 @@ export default async function ApplyCuratorPage() {
                 appliedAt: latestApplication.createdAt.toISOString(),
                 rejectionReason: latestApplication.rejectionReason,
                 reviewedBy: latestApplication.reviewedBy,
-                cooldownEndsAt,
               }
             : null
         }

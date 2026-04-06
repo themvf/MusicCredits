@@ -24,7 +24,6 @@ interface Props {
     appliedAt: string
     rejectionReason: string | null
     reviewedBy: string | null
-    cooldownEndsAt: string | null
   } | null
   spotifyConnected: boolean
 }
@@ -92,13 +91,6 @@ export default function CuratorApplicationForm({
   }
 
   if (existingApplication?.status === 'rejected') {
-    const cooldownActive =
-      existingApplication.cooldownEndsAt &&
-      new Date(existingApplication.cooldownEndsAt) > new Date()
-    const daysLeft = existingApplication.cooldownEndsAt
-      ? Math.ceil((new Date(existingApplication.cooldownEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-      : 0
-
     return (
       <div className="space-y-6">
         <div className="surface-card p-6">
@@ -108,23 +100,16 @@ export default function CuratorApplicationForm({
           <p className="mt-2 text-sm text-white/60">
             {existingApplication.rejectionReason ?? 'Your application was not approved at this time.'}
           </p>
-          {cooldownActive && (
-            <p className="mt-3 text-xs text-white/40">
-              You can reapply in {daysLeft} day{daysLeft === 1 ? '' : 's'}.
-            </p>
-          )}
         </div>
-        {!cooldownActive && (
-          <ApplicationForm
-            playlists={playlists}
-            setPlaylists={setPlaylists}
-            playlistErrors={playlistErrors}
-            spotifyConnected={spotifyConnected}
-            loading={loading}
-            onSubmit={handleSubmit}
-            submitLabel="Reapply"
-          />
-        )}
+        <ApplicationForm
+          playlists={playlists}
+          setPlaylists={setPlaylists}
+          playlistErrors={playlistErrors}
+          spotifyConnected={spotifyConnected}
+          loading={loading}
+          onSubmit={handleSubmit}
+          submitLabel="Reapply"
+        />
       </div>
     )
   }

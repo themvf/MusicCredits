@@ -9,7 +9,6 @@ import { clerkClient } from '@clerk/nextjs/server'
 
 export const runtime = 'nodejs'
 
-const MANUAL_REJECTION_COOLDOWN_DAYS = 30
 const MAX_PLAYLISTS = 10
 
 const playlistEntrySchema = z.object({
@@ -67,25 +66,6 @@ export async function POST(req: NextRequest) {
         { error: 'You already have a pending application under review' },
         { status: 409 }
       )
-    }
-
-    // 30-day cooldown on manual rejections
-    const latestRejection = await prisma.curatorApplication.findFirst({
-      where: { userId: user.id, status: 'rejected' },
-      orderBy: { updatedAt: 'desc' },
-    })
-    if (latestRejection?.reviewedBy) {
-      const cooldownEnd = new Date(latestRejection.updatedAt)
-      cooldownEnd.setDate(cooldownEnd.getDate() + MANUAL_REJECTION_COOLDOWN_DAYS)
-      if (new Date() < cooldownEnd) {
-        const daysLeft = Math.ceil(
-          (cooldownEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-        )
-        return NextResponse.json(
-          { error: `You can reapply in ${daysLeft} day${daysLeft === 1 ? '' : 's'}.`, cooldownDaysLeft: daysLeft },
-          { status: 429 }
-        )
-      }
     }
 
     const body = await req.json()
