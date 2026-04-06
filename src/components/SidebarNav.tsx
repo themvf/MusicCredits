@@ -11,12 +11,13 @@ import {
   WalletIcon,
 } from '@/components/AppIcons'
 import { cn } from '@/lib/cn'
+import { usePersona } from '@/providers/PersonaProvider'
 
 interface SidebarNavProps {
   orientation?: 'vertical' | 'horizontal'
 }
 
-const navItems = [
+const artistNavItems = [
   { href: '/dashboard', label: 'Dashboard', detail: 'Overview', icon: DashboardIcon },
   { href: '/listen', label: 'Listen & Earn', detail: 'Queue', icon: HeadphonesIcon },
   { href: '/submit', label: 'Submit Track', detail: 'Promotion', icon: UploadIcon },
@@ -24,8 +25,17 @@ const navItems = [
   { href: '/earnings', label: 'Earnings', detail: 'Credits', icon: WalletIcon },
 ] as const
 
+const curatorNavItems = [
+  { href: '/dashboard', label: 'Dashboard', detail: 'Overview', icon: DashboardIcon },
+  { href: '/listen', label: 'Review Queue', detail: 'Listen', icon: HeadphonesIcon },
+  { href: '/earnings', label: 'Earnings', detail: 'Credits', icon: WalletIcon },
+] as const
+
 export default function SidebarNav({ orientation = 'vertical' }: SidebarNavProps) {
   const pathname = usePathname()
+  const { persona, setPersona, role } = usePersona()
+
+  const navItems = persona === 'curator' ? curatorNavItems : artistNavItems
 
   return (
     <nav
@@ -37,6 +47,34 @@ export default function SidebarNav({ orientation = 'vertical' }: SidebarNavProps
       )}
       aria-label="Primary navigation"
     >
+      {/* Persona toggle — only visible for role: both */}
+      {role === 'both' && orientation === 'vertical' && (
+        <div className="mb-3 flex rounded-xl border border-white/8 bg-[#0D0D0D] p-1">
+          <button
+            onClick={() => setPersona('artist')}
+            className={cn(
+              'flex-1 rounded-lg py-2 text-xs font-semibold transition duration-150',
+              persona === 'artist'
+                ? 'bg-acid text-[#0D0D0D]'
+                : 'text-white/40 hover:text-white/70'
+            )}
+          >
+            Artist
+          </button>
+          <button
+            onClick={() => setPersona('curator')}
+            className={cn(
+              'flex-1 rounded-lg py-2 text-xs font-semibold transition duration-150',
+              persona === 'curator'
+                ? 'bg-acid text-[#0D0D0D]'
+                : 'text-white/40 hover:text-white/70'
+            )}
+          >
+            Curator
+          </button>
+        </div>
+      )}
+
       {navItems.map((item) => {
         const active =
           pathname === item.href ||
@@ -45,7 +83,7 @@ export default function SidebarNav({ orientation = 'vertical' }: SidebarNavProps
 
         return (
           <Link
-            key={item.href}
+            key={item.href + item.label}
             href={item.href}
             className={cn(
               'group flex min-w-fit items-center gap-3 rounded-xl border px-3 py-2.5 transition duration-150',

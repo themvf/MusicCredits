@@ -5,13 +5,28 @@ import CreditBadge from '@/components/CreditBadge'
 import SidebarNav from '@/components/SidebarNav'
 import { ArrowUpRightIcon, BoltIcon } from '@/components/AppIcons'
 import { clerkAppearance } from '@/lib/clerk-appearance'
+import { getAuthenticatedUser } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { PersonaProvider } from '@/providers/PersonaProvider'
 
-export default function ProtectedLayout({
+export default async function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const user = await getAuthenticatedUser()
+
+  let curatorActive = false
+  if (user.role === 'both') {
+    const profile = await prisma.curatorProfile.findUnique({
+      where: { userId: user.id },
+      select: { status: true },
+    })
+    curatorActive = profile?.status === 'active'
+  }
+
   return (
+    <PersonaProvider role={user.role} curatorActive={curatorActive}>
     <div className="min-h-screen bg-[#0D0D0D]">
       <div className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col md:flex-row">
 
@@ -71,5 +86,6 @@ export default function ProtectedLayout({
         </div>
       </div>
     </div>
+    </PersonaProvider>
   )
 }
