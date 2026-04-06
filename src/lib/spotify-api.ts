@@ -750,7 +750,7 @@ export async function fetchPlaylistForCuratorApplication(
   try {
     const data = await fetchSpotifyJson<SpotifyPlaylistDetail>(
       accessToken,
-      `/playlists/${playlistId}?fields=id,name,followers(total),tracks(total),external_urls(spotify)`
+      `/playlists/${playlistId}?fields=id,name,followers(total),tracks(total),external_urls(spotify),owner(id),collaborative`
     )
     return {
       playlistId: data.id,
