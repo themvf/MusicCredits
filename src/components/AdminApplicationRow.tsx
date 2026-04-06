@@ -4,15 +4,18 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/cn'
 
+interface PlaylistItem {
+  spotifyPlaylistId: string
+  playlistName: string | null
+  followerCountAtApply: number | null
+  genres: string[]
+}
+
 interface Props {
   applicationId: string
   displayName: string
   appliedAt: string
-  playlistName: string
-  playlistUrl: string
-  followerCount: number
-  genres: string[]
-  motivation: string
+  playlists: PlaylistItem[]
   completedSessions: number
   avgRating: string | null
   rejectionReasons: string[]
@@ -22,11 +25,7 @@ export default function AdminApplicationRow({
   applicationId,
   displayName,
   appliedAt,
-  playlistName,
-  playlistUrl,
-  followerCount,
-  genres,
-  motivation,
+  playlists,
   completedSessions,
   avgRating,
   rejectionReasons,
@@ -38,9 +37,7 @@ export default function AdminApplicationRow({
   const [done, setDone] = useState<'approved' | 'rejected' | null>(null)
 
   const appliedDate = new Date(appliedAt).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
+    month: 'short', day: 'numeric', year: 'numeric',
   })
 
   async function submit(decision: 'approve' | 'reject') {
@@ -76,9 +73,7 @@ export default function AdminApplicationRow({
   if (done) {
     return (
       <div className="surface-card p-5 opacity-50">
-        <p className="text-sm text-white/40">
-          {displayName} — {done}
-        </p>
+        <p className="text-sm text-white/40">{displayName} — {done}</p>
       </div>
     )
   }
@@ -87,40 +82,44 @@ export default function AdminApplicationRow({
     <div className="surface-card p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         {/* Applicant info */}
-        <div className="min-w-0 flex-1 space-y-3">
+        <div className="min-w-0 flex-1 space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-bold text-white">{displayName}</span>
             <span className="text-xs text-white/30">Applied {appliedDate}</span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <a
-              href={playlistUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-medium text-acid hover:text-acid/80 transition"
-            >
-              {playlistName} ↗
-            </a>
-            <span className="text-xs text-white/40">
-              {followerCount.toLocaleString()} followers
-            </span>
-          </div>
-
-          <div className="flex flex-wrap gap-1.5">
-            {genres.map((g) => (
-              <span
-                key={g}
-                className="rounded-full border border-white/10 px-2 py-0.5 text-[0.65rem] text-white/40"
-              >
-                {g}
-              </span>
+          {/* Playlists list */}
+          <div className="space-y-2">
+            {playlists.map((p) => (
+              <div key={p.spotifyPlaylistId} className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <a
+                    href={`https://open.spotify.com/playlist/${p.spotifyPlaylistId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-acid hover:text-acid/80 transition"
+                  >
+                    {p.playlistName ?? p.spotifyPlaylistId} ↗
+                  </a>
+                  {p.followerCountAtApply !== null && (
+                    <span className="text-xs text-white/40">
+                      {p.followerCountAtApply.toLocaleString()} followers
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {p.genres.map((g) => (
+                    <span
+                      key={g}
+                      className="rounded-full border border-white/10 px-2 py-0.5 text-[0.65rem] text-white/40"
+                    >
+                      {g}
+                    </span>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
-
-          {motivation && (
-            <p className="text-sm text-white/60 italic">&ldquo;{motivation}&rdquo;</p>
-          )}
 
           <div className="flex gap-4 text-xs text-white/30">
             <span>{completedSessions} sessions completed</span>
@@ -161,9 +160,7 @@ export default function AdminApplicationRow({
               >
                 <option value="">Select a reason...</option>
                 {rejectionReasons.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
+                  <option key={r} value={r}>{r}</option>
                 ))}
               </select>
               <div className="flex gap-2">

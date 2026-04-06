@@ -9,23 +9,26 @@ export default async function ApplyCuratorPage() {
 
   if (user.role === 'admin') redirect('/dashboard')
 
-  const latestApplication = await prisma.curatorApplication.findFirst({
-    where: { userId: user.id },
-    orderBy: { createdAt: 'desc' },
-    select: {
-      status: true,
-      rejectionReason: true,
-      reviewedBy: true,
-      updatedAt: true,
-      createdAt: true,
-    },
-  })
+  const [latestApplication, spotifyAccount] = await Promise.all([
+    prisma.curatorApplication.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        status: true,
+        rejectionReason: true,
+        reviewedBy: true,
+        updatedAt: true,
+        createdAt: true,
+      },
+    }),
+    prisma.spotifyAccount.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    }),
+  ])
 
   let cooldownEndsAt: string | null = null
-  if (
-    latestApplication?.status === 'rejected' &&
-    latestApplication.reviewedBy
-  ) {
+  if (latestApplication?.status === 'rejected' && latestApplication.reviewedBy) {
     const end = new Date(latestApplication.updatedAt)
     end.setDate(end.getDate() + 30)
     cooldownEndsAt = end.toISOString()
@@ -40,6 +43,7 @@ export default async function ApplyCuratorPage() {
       />
 
       <CuratorApplicationForm
+        spotifyConnected={!!spotifyAccount}
         existingApplication={
           latestApplication
             ? {

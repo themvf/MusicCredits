@@ -7,27 +7,45 @@ import { cn } from '@/lib/cn'
 import StatusToast from '@/components/StatusToast'
 import { SPOTIFY_PLAYLIST_URL_REGEX } from '@/lib/spotify'
 
+interface PlaylistEntry {
+  url: string
+  genres: string[]
+}
+
+interface PlaylistError {
+  url: string
+  status: 'failed_private' | 'failed_ownership' | 'failed_threshold'
+  error: string | null
+}
+
 interface Props {
-  // null = no prior application, show the form
   existingApplication: {
     status: 'pending' | 'approved' | 'rejected'
     appliedAt: string
     rejectionReason: string | null
-    reviewedBy: string | null   // null = auto-rejection
+    reviewedBy: string | null
     cooldownEndsAt: string | null
   } | null
+  spotifyConnected: boolean
 }
 
-export default function CuratorApplicationForm({ existingApplication }: Props) {
-  const router = useRouter()
+const MAX_PLAYLISTS = 10
 
-  const [playlistUrl, setPlaylistUrl] = useState('')
-  const [genres, setGenres] = useState<string[]>([])
-  const [motivation, setMotivation] = useState('')
+function emptyEntry(): PlaylistEntry {
+  return { url: '', genres: [] }
+}
+
+export default function CuratorApplicationForm({
+  existingApplication,
+  spotifyConnected,
+}: Props) {
+  const router = useRouter()
+  const [playlists, setPlaylists] = useState<PlaylistEntry[]>([emptyEntry()])
+  const [playlistErrors, setPlaylistErrors] = useState<PlaylistError[]>([])
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState<{
     open: boolean
-    tone: 'error' | 'info' | 'success'
+    tone: 'error' | 'info'
     title: string
     description?: string
   }>({ open: false, tone: 'info', title: '' })
@@ -37,8 +55,7 @@ export default function CuratorApplicationForm({ existingApplication }: Props) {
   if (existingApplication?.status === 'approved') {
     return (
       <div className="surface-card p-8 text-center">
-        <p className="text-5xl">🎉</p>
-        <h2 className="mt-4 text-2xl font-black text-white">You&apos;re a curator!</h2>
+        <h2 className="text-2xl font-black text-white">You&apos;re a curator!</h2>
         <p className="mt-2 text-sm text-white/50">
           Your profile is live. Toggle to curator mode in the dashboard to start reviewing tracks.
         </p>
@@ -51,17 +68,14 @@ export default function CuratorApplicationForm({ existingApplication }: Props) {
 
   if (existingApplication?.status === 'pending') {
     const appliedDate = new Date(existingApplication.appliedAt).toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
+      month: 'long', day: 'numeric', year: 'numeric',
     })
     return (
       <div className="surface-card p-8">
         <div className="flex items-start gap-4">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-acid/10 text-acid">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
+              <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
             </svg>
           </span>
           <div>
@@ -78,16 +92,11 @@ export default function CuratorApplicationForm({ existingApplication }: Props) {
   }
 
   if (existingApplication?.status === 'rejected') {
-    const isAutoRejection = !existingApplication.reviewedBy
     const cooldownActive =
       existingApplication.cooldownEndsAt &&
       new Date(existingApplication.cooldownEndsAt) > new Date()
-
     const daysLeft = existingApplication.cooldownEndsAt
-      ? Math.ceil(
-          (new Date(existingApplication.cooldownEndsAt).getTime() - Date.now()) /
-            (1000 * 60 * 60 * 24)
-        )
+      ? Math.ceil((new Date(existingApplication.cooldownEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
       : 0
 
     return (
@@ -105,15 +114,12 @@ export default function CuratorApplicationForm({ existingApplication }: Props) {
             </p>
           )}
         </div>
-
-        {(isAutoRejection || !cooldownActive) && (
-          <ApplicationFormFields
-            playlistUrl={playlistUrl}
-            setPlaylistUrl={setPlaylistUrl}
-            genres={genres}
-            setGenres={setGenres}
-            motivation={motivation}
-            setMotivation={setMotivation}
+        {!cooldownActive && (
+          <ApplicationForm
+            playlists={playlists}
+            setPlaylists={setPlaylists}
+            playlistErrors={playlistErrors}
+            spotifyConnected={spotifyConnected}
             loading={loading}
             onSubmit={handleSubmit}
             submitLabel="Reapply"
@@ -126,17 +132,28 @@ export default function CuratorApplicationForm({ existingApplication }: Props) {
   // ─── Fresh form ─────────────────────────────────────────────────────────────
 
   async function handleSubmit() {
-    if (!playlistUrl || genres.length === 0 || motivation.trim().length < 10) return
+    setPlaylistErrors([])
     setLoading(true)
 
     try {
       const res = await fetch('/api/curator/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spotifyPlaylistUrl: playlistUrl, genres, motivation }),
+        body: JSON.stringify({
+          playlists: playlists.map((p) => ({
+            spotifyPlaylistUrl: p.url,
+            genres: p.genres,
+          })),
+        }),
       })
 
       const data = await res.json()
+
+      if (res.status === 422 && data.playlistErrors) {
+        setPlaylistErrors(data.playlistErrors as PlaylistError[])
+        setToast({ open: true, tone: 'error', title: data.error ?? 'Some playlists failed verification' })
+        return
+      }
 
       if (!res.ok) {
         setToast({ open: true, tone: 'error', title: data.error ?? 'Something went wrong' })
@@ -153,20 +170,18 @@ export default function CuratorApplicationForm({ existingApplication }: Props) {
 
   return (
     <>
-      <ApplicationFormFields
-        playlistUrl={playlistUrl}
-        setPlaylistUrl={setPlaylistUrl}
-        genres={genres}
-        setGenres={setGenres}
-        motivation={motivation}
-        setMotivation={setMotivation}
+      <ApplicationForm
+        playlists={playlists}
+        setPlaylists={setPlaylists}
+        playlistErrors={playlistErrors}
+        spotifyConnected={spotifyConnected}
         loading={loading}
         onSubmit={handleSubmit}
         submitLabel="Submit application"
       />
       <StatusToast
         open={toast.open}
-        tone={toast.tone === 'success' ? 'info' : toast.tone}
+        tone={toast.tone}
         title={toast.title}
         description={toast.description}
         onClose={() => setToast((c) => ({ ...c, open: false }))}
@@ -175,139 +190,171 @@ export default function CuratorApplicationForm({ existingApplication }: Props) {
   )
 }
 
-// ─── Shared form fields component ─────────────────────────────────────────────
+// ─── Multi-playlist form ───────────────────────────────────────────────────────
 
-function ApplicationFormFields({
-  playlistUrl,
-  setPlaylistUrl,
-  genres,
-  setGenres,
-  motivation,
-  setMotivation,
+function ApplicationForm({
+  playlists,
+  setPlaylists,
+  playlistErrors,
+  spotifyConnected,
   loading,
   onSubmit,
   submitLabel,
 }: {
-  playlistUrl: string
-  setPlaylistUrl: (v: string) => void
-  genres: string[]
-  setGenres: (v: string[]) => void
-  motivation: string
-  setMotivation: (v: string) => void
+  playlists: PlaylistEntry[]
+  setPlaylists: (v: PlaylistEntry[]) => void
+  playlistErrors: PlaylistError[]
+  spotifyConnected: boolean
   loading: boolean
   onSubmit: () => void
   submitLabel: string
 }) {
-  const urlValid = SPOTIFY_PLAYLIST_URL_REGEX.test(playlistUrl)
-  const canSubmit =
-    urlValid &&
-    genres.length >= 1 &&
-    motivation.trim().length >= 10 &&
-    motivation.length <= 150
+  const allUrlsValid = playlists.every((p) => SPOTIFY_PLAYLIST_URL_REGEX.test(p.url))
+  const allGenresSelected = playlists.every((p) => p.genres.length >= 1)
+  const canSubmit = spotifyConnected && allUrlsValid && allGenresSelected && playlists.length >= 1
 
-  function toggleGenre(genre: string) {
-    if (genres.includes(genre)) {
-      setGenres(genres.filter((g) => g !== genre))
-    } else if (genres.length < 2) {
-      setGenres([...genres, genre])
+  function updateEntry(index: number, patch: Partial<PlaylistEntry>) {
+    const next = [...playlists]
+    next[index] = { ...next[index], ...patch }
+    setPlaylists(next)
+  }
+
+  function addPlaylist() {
+    if (playlists.length < MAX_PLAYLISTS) {
+      setPlaylists([...playlists, emptyEntry()])
     }
+  }
+
+  function removePlaylist(index: number) {
+    setPlaylists(playlists.filter((_, i) => i !== index))
+  }
+
+  function toggleGenre(index: number, genre: string) {
+    const current = playlists[index].genres
+    if (current.includes(genre)) {
+      updateEntry(index, { genres: current.filter((g) => g !== genre) })
+    } else if (current.length < 2) {
+      updateEntry(index, { genres: [...current, genre] })
+    }
+  }
+
+  function getPlaylistError(url: string): string | null {
+    return playlistErrors.find((e) => e.url === url)?.error ?? null
   }
 
   return (
     <div className="space-y-8">
-      {/* Q1: Playlist URL */}
-      <div className="surface-card p-6">
-        <label className="block text-sm font-medium text-white/60">
-          Spotify playlist URL
-        </label>
-        <p className="mt-1 text-xs text-white/30">
-          Must be a public playlist. Paste the full URL from Spotify.
-        </p>
-        <input
-          type="url"
-          value={playlistUrl}
-          onChange={(e) => setPlaylistUrl(e.target.value)}
-          placeholder="https://open.spotify.com/playlist/..."
-          className={cn(
-            'mt-3 h-11 w-full rounded-xl border bg-[#111111] px-4 text-sm text-white transition focus:outline-none focus:ring-2',
-            playlistUrl && !urlValid
-              ? 'border-rose-400/40 focus:ring-rose-400/20'
-              : 'border-white/10 focus:border-acid/40 focus:ring-acid/15'
-          )}
-        />
-        {playlistUrl && !urlValid && (
-          <p className="mt-2 text-xs text-rose-400">
-            That doesn&apos;t look like a Spotify playlist URL.
+      {/* Spotify connect gate */}
+      {!spotifyConnected && (
+        <div className="surface-card p-6">
+          <p className="text-sm font-medium text-white">Connect Spotify first</p>
+          <p className="mt-2 text-sm text-white/50">
+            We verify playlist ownership using your Spotify account. Connect before applying.
           </p>
-        )}
-      </div>
+          <a href="/api/auth/spotify/connect" className="button-primary mt-5 inline-flex">
+            Connect Spotify
+          </a>
+        </div>
+      )}
 
-      {/* Q2: Genre focus */}
-      <div className="surface-card p-6">
-        <label className="block text-sm font-medium text-white/60">
-          Genre focus{' '}
-          <span className="text-white/30">(up to 2)</span>
-        </label>
-        <p className="mt-1 text-xs text-white/30">
-          What genres does your playlist cover?
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {GENRES.map((genre) => {
-            const selected = genres.includes(genre)
-            const disabled = !selected && genres.length >= 2
-            return (
-              <button
-                key={genre}
-                type="button"
-                disabled={disabled}
-                onClick={() => toggleGenre(genre)}
+      {/* Playlist entries */}
+      {playlists.map((entry, idx) => {
+        const urlValid = SPOTIFY_PLAYLIST_URL_REGEX.test(entry.url)
+        const serverError = getPlaylistError(entry.url)
+
+        return (
+          <div key={idx} className="surface-card p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-white">
+                Playlist {playlists.length > 1 ? idx + 1 : ''}
+              </p>
+              {playlists.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removePlaylist(idx)}
+                  className="text-xs text-white/30 hover:text-rose-400 transition"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+
+            {/* URL */}
+            <div>
+              <label className="block text-xs font-medium text-white/60">
+                Spotify playlist URL
+              </label>
+              <p className="mt-0.5 text-[0.65rem] text-white/30">
+                Must be public and owned by you (or a collaborative playlist).
+              </p>
+              <input
+                type="url"
+                value={entry.url}
+                onChange={(e) => updateEntry(idx, { url: e.target.value })}
+                placeholder="https://open.spotify.com/playlist/..."
                 className={cn(
-                  'rounded-full border px-3 py-1.5 text-xs font-medium transition',
-                  selected
-                    ? 'border-acid/40 bg-acid/10 text-acid'
-                    : disabled
-                    ? 'cursor-not-allowed border-white/5 text-white/20'
-                    : 'border-white/10 text-white/50 hover:border-white/20 hover:text-white/80'
+                  'mt-2 h-11 w-full rounded-xl border bg-[#111111] px-4 text-sm text-white transition focus:outline-none focus:ring-2',
+                  entry.url && !urlValid
+                    ? 'border-rose-400/40 focus:ring-rose-400/20'
+                    : serverError
+                      ? 'border-rose-400/40 focus:ring-rose-400/20'
+                      : 'border-white/10 focus:border-acid/40 focus:ring-acid/15'
                 )}
-              >
-                {genre}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+              />
+              {entry.url && !urlValid && (
+                <p className="mt-1.5 text-xs text-rose-400">
+                  That doesn&apos;t look like a Spotify playlist URL.
+                </p>
+              )}
+              {serverError && urlValid && (
+                <p className="mt-1.5 text-xs text-rose-400">{serverError}</p>
+              )}
+            </div>
 
-      {/* Q3: Motivation */}
-      <div className="surface-card p-6">
-        <label className="block text-sm font-medium text-white/60">
-          Why do you curate?
-        </label>
-        <p className="mt-1 text-xs text-white/30">
-          What makes a track earn a spot on your playlist? (10–150 characters)
-        </p>
-        <textarea
-          rows={3}
-          maxLength={150}
-          value={motivation}
-          onChange={(e) => setMotivation(e.target.value)}
-          placeholder="I curate tracks that..."
-          className="mt-3 w-full resize-none rounded-xl border border-white/10 bg-[#111111] px-4 py-3 text-sm text-white transition focus:border-acid/40 focus:outline-none focus:ring-2 focus:ring-acid/15"
-        />
-        <div className="mt-1 flex justify-between text-xs">
-          <span className={cn(
-            motivation.trim().length > 0 && motivation.trim().length < 10
-              ? 'text-rose-400'
-              : 'text-white/20'
-          )}>
-            {motivation.trim().length < 10
-              ? `${10 - motivation.trim().length} more characters needed`
-              : null}
-          </span>
-          <span className={cn('text-white/30', motivation.length > 140 && 'text-rose-400')}>
-            {motivation.length} / 150
-          </span>
-        </div>
-      </div>
+            {/* Genre picker */}
+            <div>
+              <label className="block text-xs font-medium text-white/60">
+                Genre focus <span className="text-white/30">(up to 2)</span>
+              </label>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {GENRES.map((genre) => {
+                  const selected = entry.genres.includes(genre)
+                  const disabled = !selected && entry.genres.length >= 2
+                  return (
+                    <button
+                      key={genre}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => toggleGenre(idx, genre)}
+                      className={cn(
+                        'rounded-full border px-3 py-1.5 text-xs font-medium transition',
+                        selected
+                          ? 'border-acid/40 bg-acid/10 text-acid'
+                          : disabled
+                            ? 'cursor-not-allowed border-white/5 text-white/20'
+                            : 'border-white/10 text-white/50 hover:border-white/20 hover:text-white/80'
+                      )}
+                    >
+                      {genre}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )
+      })}
+
+      {/* Add another playlist */}
+      {playlists.length < MAX_PLAYLISTS && (
+        <button
+          type="button"
+          onClick={addPlaylist}
+          className="w-full rounded-xl border border-dashed border-white/15 py-3 text-sm text-white/40 transition hover:border-white/25 hover:text-white/60"
+        >
+          + Add another playlist
+        </button>
+      )}
 
       <button
         type="button"
@@ -318,7 +365,7 @@ function ApplicationFormFields({
           (!canSubmit || loading) && 'cursor-not-allowed opacity-50'
         )}
       >
-        {loading ? 'Checking your playlist...' : submitLabel}
+        {loading ? 'Verifying playlists...' : submitLabel}
       </button>
     </div>
   )

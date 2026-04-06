@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { handleApiError } from '@/lib/api-error'
+import { handleApiError, ApiRouteError } from '@/lib/api-error'
 import { getAuthenticatedUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { fetchPlaylistForCuratorApplication } from '@/lib/spotify-api'
@@ -10,8 +10,9 @@ import { clerkClient } from '@clerk/nextjs/server'
 export const runtime = 'nodejs'
 
 const MANUAL_REJECTION_COOLDOWN_DAYS = 30
+const MAX_PLAYLISTS = 10
 
-const applySchema = z.object({
+const playlistEntrySchema = z.object({
   spotifyPlaylistUrl: z
     .string()
     .regex(
@@ -22,22 +23,69 @@ const applySchema = z.object({
     .array(z.enum(GENRES as unknown as [string, ...string[]]))
     .min(1, 'Select at least one genre')
     .max(2, 'Select up to 2 genres'),
-  motivation: z
-    .string()
-    .min(10, 'Tell us a bit more (minimum 10 characters)')
-    .max(150, 'Keep it under 150 characters'),
+})
+
+const applySchema = z.object({
+  playlists: z
+    .array(playlistEntrySchema)
+    .min(1, 'Add at least one playlist')
+    .max(MAX_PLAYLISTS, `Maximum ${MAX_PLAYLISTS} playlists`),
 })
 
 export async function POST(req: NextRequest) {
   try {
     const user = await getAuthenticatedUser()
 
-    // Admins cannot apply to be curators
     if (user.role === 'admin') {
       return NextResponse.json(
         { error: 'Admin accounts cannot apply as curators' },
         { status: 403 }
       )
+    }
+
+    if (user.role === 'both') {
+      return NextResponse.json({ error: 'You are already an approved curator' }, { status: 409 })
+    }
+
+    // Require Spotify to be connected (ownership check depends on it)
+    const spotifyAccount = await prisma.spotifyAccount.findUnique({
+      where: { userId: user.id },
+    })
+    if (!spotifyAccount) {
+      return NextResponse.json(
+        { error: 'Connect Spotify before applying' },
+        { status: 422 }
+      )
+    }
+
+    // Block if pending application exists
+    const existingPending = await prisma.curatorApplication.findFirst({
+      where: { userId: user.id, status: 'pending' },
+    })
+    if (existingPending) {
+      return NextResponse.json(
+        { error: 'You already have a pending application under review' },
+        { status: 409 }
+      )
+    }
+
+    // 30-day cooldown on manual rejections
+    const latestRejection = await prisma.curatorApplication.findFirst({
+      where: { userId: user.id, status: 'rejected' },
+      orderBy: { updatedAt: 'desc' },
+    })
+    if (latestRejection?.reviewedBy) {
+      const cooldownEnd = new Date(latestRejection.updatedAt)
+      cooldownEnd.setDate(cooldownEnd.getDate() + MANUAL_REJECTION_COOLDOWN_DAYS)
+      if (new Date() < cooldownEnd) {
+        const daysLeft = Math.ceil(
+          (cooldownEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+        )
+        return NextResponse.json(
+          { error: `You can reapply in ${daysLeft} day${daysLeft === 1 ? '' : 's'}.`, cooldownDaysLeft: daysLeft },
+          { status: 429 }
+        )
+      }
     }
 
     const body = await req.json()
@@ -49,105 +97,87 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { spotifyPlaylistUrl, genres, motivation } = parsed.data
+    const { playlists } = parsed.data
 
-    // Block if there's already a pending application
-    const existingPending = await prisma.curatorApplication.findFirst({
-      where: { userId: user.id, status: 'pending' },
-    })
-    if (existingPending) {
-      return NextResponse.json(
-        { error: 'You already have a pending application under review' },
-        { status: 409 }
-      )
-    }
-
-    // Block if there's already an approved application (already a curator)
-    if (user.role === 'both') {
-      return NextResponse.json(
-        { error: 'You are already an approved curator' },
-        { status: 409 }
-      )
-    }
-
-    // Check 30-day cooldown on manual rejections
-    const latestRejection = await prisma.curatorApplication.findFirst({
-      where: { userId: user.id, status: 'rejected' },
-      orderBy: { updatedAt: 'desc' },
-    })
-    if (latestRejection && latestRejection.reviewedBy) {
-      // Manual rejection — check cooldown
-      const cooldownEnd = new Date(latestRejection.updatedAt)
-      cooldownEnd.setDate(cooldownEnd.getDate() + MANUAL_REJECTION_COOLDOWN_DAYS)
-      if (new Date() < cooldownEnd) {
-        const daysLeft = Math.ceil(
-          (cooldownEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-        )
-        return NextResponse.json(
-          {
-            error: `You can reapply in ${daysLeft} day${daysLeft === 1 ? '' : 's'}.`,
-            cooldownDaysLeft: daysLeft,
-          },
-          { status: 429 }
-        )
-      }
-    }
-
-    // ─── Spotify playlist check ───────────────────────────────────────────────
-
-    const playlistData = await fetchPlaylistForCuratorApplication(spotifyPlaylistUrl)
-
-    if (!playlistData) {
-      // Private or inaccessible playlist
-      return NextResponse.json(
-        {
-          error:
-            "We couldn't access that playlist. Make sure it's set to public on Spotify.",
-          spotifyCheckStatus: 'failed_private',
-        },
-        { status: 422 }
-      )
-    }
-
-    // Read the minimum follower threshold from platform_settings
+    // Read follower threshold
     const thresholdSetting = await prisma.platformSetting.findUnique({
       where: { key: 'curator_min_followers' },
     })
     const minFollowers = parseInt(thresholdSetting?.value ?? '500', 10)
 
-    const thresholdMet = playlistData.followerCount >= minFollowers
-    const spotifyCheckStatus = thresholdMet ? 'passed' : 'failed_threshold'
+    // ─── Per-playlist checks ──────────────────────────────────────────────────
+    const playlistResults = await Promise.all(
+      playlists.map(async (entry) => {
+        const data = await fetchPlaylistForCuratorApplication(entry.spotifyPlaylistUrl)
 
-    // Auto-reject if below threshold — no admin involvement needed
-    if (!thresholdMet) {
-      await prisma.curatorApplication.create({
-        data: {
-          userId: user.id,
-          spotifyPlaylistId: playlistData.playlistId,
-          playlistName: playlistData.playlistName,
-          followerCountAtApply: playlistData.followerCount,
-          thresholdMet: false,
-          spotifyCheckStatus: 'failed_threshold',
-          genres,
-          motivation,
-          status: 'rejected',
-          rejectionReason: `Your playlist has ${playlistData.followerCount.toLocaleString()} followers. The minimum is ${minFollowers.toLocaleString()}.`,
-        },
+        if (!data) {
+          return {
+            url: entry.spotifyPlaylistUrl,
+            genres: entry.genres,
+            spotifyCheckStatus: 'failed_private' as const,
+            error: "We couldn't access that playlist. Make sure it's set to public on Spotify.",
+          }
+        }
+
+        // Ownership check: owner OR collaborative playlist
+        const isOwner = data.ownerId === spotifyAccount.spotifyUserId
+        const isCollaborative = data.collaborative
+        if (!isOwner && !isCollaborative) {
+          return {
+            url: entry.spotifyPlaylistUrl,
+            genres: entry.genres,
+            playlistId: data.playlistId,
+            playlistName: data.playlistName,
+            followerCount: data.followerCount,
+            spotifyCheckStatus: 'failed_ownership' as const,
+            error: `This playlist does not belong to you. Please choose a different playlist.`,
+          }
+        }
+
+        const thresholdMet = data.followerCount >= minFollowers
+        if (!thresholdMet) {
+          return {
+            url: entry.spotifyPlaylistUrl,
+            genres: entry.genres,
+            playlistId: data.playlistId,
+            playlistName: data.playlistName,
+            followerCount: data.followerCount,
+            spotifyCheckStatus: 'failed_threshold' as const,
+            error: `Your playlist "${data.playlistName}" has ${data.followerCount.toLocaleString()} followers. The minimum is ${minFollowers.toLocaleString()}.`,
+          }
+        }
+
+        return {
+          url: entry.spotifyPlaylistUrl,
+          genres: entry.genres,
+          playlistId: data.playlistId,
+          playlistName: data.playlistName,
+          followerCount: data.followerCount,
+          spotifyCheckStatus: 'passed' as const,
+          error: null,
+        }
       })
+    )
+
+    const passing = playlistResults.filter((r) => r.spotifyCheckStatus === 'passed')
+    const failing = playlistResults.filter((r) => r.spotifyCheckStatus !== 'passed')
+
+    // Return per-playlist errors to client if any failed — don't create application yet
+    if (failing.length > 0) {
       return NextResponse.json(
         {
-          error: `Your playlist has ${playlistData.followerCount.toLocaleString()} followers. The minimum is ${minFollowers.toLocaleString()}. Come back when you've grown your audience.`,
-          spotifyCheckStatus: 'failed_threshold',
-          followerCount: playlistData.followerCount,
-          minFollowers,
+          error: 'Some playlists could not be verified. Fix the issues and try again.',
+          playlistErrors: playlistResults.map((r) => ({
+            url: r.url,
+            status: r.spotifyCheckStatus,
+            error: r.error,
+          })),
         },
         { status: 422 }
       )
     }
 
-    // ─── Passed threshold — create pending application ────────────────────────
-
-    // Store Clerk display name in ArtistProfile so admin can identify applicants
+    // All passed — create application + playlist rows in one transaction
     const clerk = await clerkClient()
     const clerkUser = await clerk.users.getUser(user.clerkId)
     const displayName =
@@ -159,14 +189,17 @@ export async function POST(req: NextRequest) {
       prisma.curatorApplication.create({
         data: {
           userId: user.id,
-          spotifyPlaylistId: playlistData.playlistId,
-          playlistName: playlistData.playlistName,
-          followerCountAtApply: playlistData.followerCount,
-          thresholdMet: true,
-          spotifyCheckStatus: 'passed',
-          genres,
-          motivation,
           status: 'pending',
+          playlists: {
+            create: passing.map((p) => ({
+              spotifyPlaylistId: p.playlistId!,
+              playlistName: p.playlistName!,
+              followerCountAtApply: p.followerCount!,
+              thresholdMet: true,
+              spotifyCheckStatus: 'passed',
+              genres: p.genres,
+            })),
+          },
         },
       }),
       prisma.artistProfile.upsert({

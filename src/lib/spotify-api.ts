@@ -64,6 +64,10 @@ interface SpotifyPlaylistDetail extends SpotifyPlaylistSummary {
   followers?: {
     total: number
   }
+  owner?: {
+    id: string
+  }
+  collaborative?: boolean
 }
 
 interface SpotifyPlaylistItemPage {
@@ -719,6 +723,8 @@ export interface SpotifyPlaylistApplicationResult {
   playlistId: string
   playlistName: string
   followerCount: number
+  ownerId: string
+  collaborative: boolean
 }
 
 /**
@@ -750,6 +756,8 @@ export async function fetchPlaylistForCuratorApplication(
       playlistId: data.id,
       playlistName: data.name,
       followerCount: data.followers?.total ?? 0,
+      ownerId: data.owner?.id ?? '',
+      collaborative: data.collaborative ?? false,
     }
   } catch (err) {
     if (err instanceof ApiRouteError && (err.status === 404 || err.status === 403)) {

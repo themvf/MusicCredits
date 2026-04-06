@@ -14,7 +14,6 @@ export default async function CuratorApplicationCard({ userId }: Props) {
       rejectionReason: true,
       reviewedBy: true,
       createdAt: true,
-      followerCountAtApply: true,
     },
   })
 

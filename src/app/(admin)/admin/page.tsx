@@ -7,10 +7,19 @@ export default async function AdminPage() {
   const applications = await prisma.curatorApplication.findMany({
     where: {
       status: 'pending',
-      spotifyCheckStatus: 'passed',
+      playlists: { some: { spotifyCheckStatus: 'passed' } },
     },
     orderBy: { createdAt: 'asc' },
     include: {
+      playlists: {
+        where: { spotifyCheckStatus: 'passed' },
+        select: {
+          spotifyPlaylistId: true,
+          playlistName: true,
+          followerCountAtApply: true,
+          genres: true,
+        },
+      },
       user: {
         include: {
           artistProfile: { select: { displayName: true } },
@@ -90,11 +99,7 @@ export default async function AdminPage() {
                   applicationId={app.id}
                   displayName={displayName}
                   appliedAt={app.createdAt.toISOString()}
-                  playlistName={app.playlistName ?? app.spotifyPlaylistId}
-                  playlistUrl={`https://open.spotify.com/playlist/${app.spotifyPlaylistId}`}
-                  followerCount={app.followerCountAtApply ?? 0}
-                  genres={app.genres}
-                  motivation={app.motivation ?? ''}
+                  playlists={app.playlists}
                   completedSessions={stats?.completedSessions ?? 0}
                   avgRating={stats?.avgRating ?? null}
                   rejectionReasons={REJECTION_REASONS as unknown as string[]}

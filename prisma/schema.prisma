@@ -39,6 +39,7 @@ enum SpotifyCheckStatus {
   failed_threshold
   failed_private
   failed_api_error
+  failed_ownership
 }
 
 // ─── Core user ───────────────────────────────────────────────────────────────
@@ -261,63 +262,83 @@ model ArtistProfile {
 // Created only when a CuratorApplication is approved (in the same transaction
 // that updates users.role to 'both'). Never created manually.
 model CuratorProfile {
-  id                String               @id @default(cuid())
-  userId            String               @unique
-  spotifyPlaylistId String
-  displayName       String?
-  bio               String?
+  id           String               @id @default(cuid())
+  userId       String               @unique
+  displayName  String?
+  bio          String?
   // active → suspended (temporary, reinstatable) → revoked (permanent)
   // Suspension is enforced here, NOT via users.role. Role stays 'both'.
-  status            CuratorProfileStatus @default(active)
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
-  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  genres            CuratorGenre[]
-  statusEvents      CuratorStatusEvent[]
+  status       CuratorProfileStatus @default(active)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playlists    CuratorPlaylist[]
+  statusEvents CuratorStatusEvent[]
   // The single approved application that created this profile
-  approvedFrom      CuratorApplication?
+  approvedFrom CuratorApplication?
 }
 
-model CuratorGenre {
-  id               String         @id @default(cuid())
-  curatorProfileId String
-  genre            String
-  curatorProfile   CuratorProfile @relation(fields: [curatorProfileId], references: [id], onDelete: Cascade)
+// One row per curator-owned/collaborative playlist.
+// Created in the approval transaction, one per passing CuratorApplicationPlaylist.
+// genres[] here is the canonical source for the matching algorithm.
+model CuratorPlaylist {
+  id                String         @id @default(cuid())
+  curatorProfileId  String
+  spotifyPlaylistId String
+  playlistName      String
+  followers         Int            @default(0)
+  genres            String[]       @default([])
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  curatorProfile    CuratorProfile @relation(fields: [curatorProfileId], references: [id], onDelete: Cascade)
 
-  @@unique([curatorProfileId, genre])
+  @@unique([curatorProfileId, spotifyPlaylistId])
+  @@index([curatorProfileId])
 }
 
 // ─── Curator application flow ────────────────────────────────────────────────
 
-// Progression: artist → submit application → (auto-check follower threshold)
-// → if passed: manual admin review → approved → CuratorProfile created + role: both
-// → if failed: auto-rejected with specific reason, no admin involvement
+// Progression: artist (Spotify connected) → submit application with 1-10 playlists
+// → per-playlist: ownership + follower check (inline, before submission)
+// → playlists that pass enter admin review queue
+// → admin approves/rejects whole application
+// → approved: CuratorProfile + CuratorPlaylist rows created + role: both
 model CuratorApplication {
-  id                   String                   @id @default(cuid())
-  userId               String
-  spotifyPlaylistId    String
-  // Fetched from Spotify at submission time
-  playlistName         String?
-  // Populated by Spotify API call at submission time (server-side, client credentials)
-  followerCountAtApply Int?
-  thresholdMet         Boolean?
-  spotifyCheckStatus   SpotifyCheckStatus?
-  // Form fields collected at submission
-  genres               String[]                 @default([])
-  motivation           String?
-  status               CuratorApplicationStatus @default(pending)
-  rejectionReason      String?
-  // Set when application is approved; links to the CuratorProfile created in the same tx
-  curatorProfileId     String?                  @unique
-  reviewedBy           String?
-  reviewedAt           DateTime?
-  createdAt            DateTime                 @default(now())
-  updatedAt            DateTime                 @updatedAt
-  user                 User                     @relation(fields: [userId], references: [id])
-  curatorProfile       CuratorProfile?          @relation(fields: [curatorProfileId], references: [id], onDelete: SetNull)
-  reviewer             User?                    @relation("ApplicationReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  id               String                      @id @default(cuid())
+  userId           String
+  status           CuratorApplicationStatus    @default(pending)
+  rejectionReason  String?
+  // Set on approval in the same tx that creates CuratorProfile
+  curatorProfileId String?                     @unique
+  reviewedBy       String?
+  reviewedAt       DateTime?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
+  user             User                        @relation(fields: [userId], references: [id])
+  playlists        CuratorApplicationPlaylist[]
+  curatorProfile   CuratorProfile?             @relation(fields: [curatorProfileId], references: [id], onDelete: SetNull)
+  reviewer         User?                       @relation("ApplicationReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
 
   @@index([userId, status])
+}
+
+// One row per submitted playlist. Checks run per-playlist at submission time.
+// Only rows with spotifyCheckStatus = 'passed' appear in the admin review queue.
+model CuratorApplicationPlaylist {
+  id                   String              @id @default(cuid())
+  applicationId        String
+  spotifyPlaylistId    String
+  playlistName         String?
+  followerCountAtApply Int?
+  thresholdMet         Boolean?
+  // passed | failed_threshold | failed_private | failed_api_error | failed_ownership
+  spotifyCheckStatus   SpotifyCheckStatus?
+  genres               String[]            @default([])
+  createdAt            DateTime            @default(now())
+  application          CuratorApplication  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, spotifyPlaylistId])
+  @@index([applicationId, spotifyCheckStatus])
 }
 
 // Full audit trail of every CuratorProfile status change.

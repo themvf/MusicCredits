@@ -4,7 +4,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/cn'
 import SpotifyEmbed from '@/components/SpotifyEmbed'
+import ListenProgressBar from '@/components/ListenProgressBar'
 import StatusToast from '@/components/StatusToast'
+import { useListeningSession } from '@/hooks/useListeningSession'
 import { extractSpotifyTrackId } from '@/lib/spotify'
 
 interface Props {
@@ -24,10 +26,12 @@ function ScorePicker({
   label,
   value,
   onChange,
+  disabled,
 }: {
   label: string
   value: number
   onChange: (v: number) => void
+  disabled?: boolean
 }) {
   return (
     <div>
@@ -37,18 +41,21 @@ function ScorePicker({
           <button
             key={n}
             type="button"
+            disabled={disabled}
             onClick={() => onChange(n)}
             className={cn(
               'flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-semibold transition',
-              value === n
-                ? 'border-acid/40 bg-acid/10 text-acid'
-                : 'border-white/10 text-white/40 hover:border-white/20 hover:text-white/70'
+              disabled
+                ? 'cursor-not-allowed border-white/5 text-white/20'
+                : value === n
+                  ? 'border-acid/40 bg-acid/10 text-acid'
+                  : 'border-white/10 text-white/40 hover:border-white/20 hover:text-white/70'
             )}
           >
             {n}
           </button>
         ))}
-        {value > 0 && (
+        {value > 0 && !disabled && (
           <span className="self-center pl-1 text-xs text-white/30">
             {SCORE_LABELS[value]}
           </span>
@@ -69,6 +76,9 @@ export default function CuratorReviewClient({
   explicit,
 }: Props) {
   const router = useRouter()
+  const [isPlaying, setIsPlaying] = useState(false)
+  const { displayMs, isEligible, interruptionsCount } = useListeningSession(isPlaying)
+
   const [productionScore, setProductionScore] = useState(0)
   const [genreFitScore, setGenreFitScore] = useState(0)
   const [overallScore, setOverallScore] = useState(0)
@@ -80,7 +90,10 @@ export default function CuratorReviewClient({
     title: '',
   })
 
+  const formLocked = !isEligible
+
   const canSubmit =
+    isEligible &&
     productionScore > 0 &&
     genreFitScore > 0 &&
     overallScore > 0 &&
@@ -101,6 +114,8 @@ export default function CuratorReviewClient({
           overallScore,
           notes: notes.trim() || undefined,
           playlistDecision: decision,
+          activeListenTimeMs: displayMs,
+          resetsCount: interruptionsCount,
         }),
       })
 
@@ -110,10 +125,13 @@ export default function CuratorReviewClient({
         return
       }
 
-      const { credits } = await res.json()
-      router.push(
-        `/review?submitted=1&credits=${credits}&decision=${decision ? 'added' : 'passed'}`
-      )
+      const { credits, playlistDecision } = await res.json()
+
+      if (playlistDecision) {
+        router.push(`/review/add?sessionId=${sessionId}&trackId=${trackId}&credits=${credits}`)
+      } else {
+        router.push(`/review?submitted=1&credits=${credits}&decision=passed`)
+      }
     } catch {
       setToast({ open: true, title: 'Network error — please try again' })
     } finally {
@@ -161,11 +179,22 @@ export default function CuratorReviewClient({
         trackTitle={trackTitle}
         artistName={artistName}
         spotifyUrl={spotifyUrl}
-        onPlaybackUpdate={() => {}}
+        onPlaybackUpdate={({ isPlaying: playing }) => setIsPlaying(playing)}
       />
 
-      {/* Review form */}
-      <div className="surface-card space-y-6 p-6">
+      {/* Listen progress — visible until eligible */}
+      {!isEligible && (
+        <ListenProgressBar currentMs={displayMs} targetSeconds={30} />
+      )}
+
+      {/* Review form — locked until 30s listened */}
+      <div className={cn('surface-card space-y-6 p-6', formLocked && 'opacity-40')}>
+        {formLocked && (
+          <p className="text-xs font-medium text-white/50">
+            Listen for 30 seconds to unlock your review.
+          </p>
+        )}
+
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/40">
           Your review
         </p>
@@ -174,16 +203,19 @@ export default function CuratorReviewClient({
           label="Production quality"
           value={productionScore}
           onChange={setProductionScore}
+          disabled={formLocked}
         />
         <ScorePicker
           label="Genre fit for your playlist"
           value={genreFitScore}
           onChange={setGenreFitScore}
+          disabled={formLocked}
         />
         <ScorePicker
           label="Overall impression"
           value={overallScore}
           onChange={setOverallScore}
+          disabled={formLocked}
         />
 
         <div>
@@ -195,30 +227,34 @@ export default function CuratorReviewClient({
             rows={3}
             maxLength={500}
             value={notes}
+            disabled={formLocked}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Be specific and constructive. Artists read every word."
-            className="w-full resize-none rounded-xl border border-white/10 bg-[#111111] px-4 py-3 text-sm text-white transition focus:border-acid/40 focus:outline-none focus:ring-2 focus:ring-acid/15"
+            className="w-full resize-none rounded-xl border border-white/10 bg-[#111111] px-4 py-3 text-sm text-white transition focus:border-acid/40 focus:outline-none focus:ring-2 focus:ring-acid/15 disabled:cursor-not-allowed disabled:opacity-60"
           />
         </div>
       </div>
 
       {/* Binary decision — last step */}
-      <div className="surface-card p-6">
+      <div className={cn('surface-card p-6', formLocked && 'opacity-40')}>
         <p className="mb-4 text-xs font-semibold uppercase tracking-[0.22em] text-white/40">
           Your decision
         </p>
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
+            disabled={formLocked}
             onClick={() => setDecision(true)}
             className={cn(
               'rounded-xl border p-4 text-left transition',
-              decision === true
-                ? 'border-acid/40 bg-acid/8'
-                : 'border-white/10 hover:border-white/20'
+              formLocked
+                ? 'cursor-not-allowed border-white/5'
+                : decision === true
+                  ? 'border-acid/40 bg-acid/8'
+                  : 'border-white/10 hover:border-white/20'
             )}
           >
-            <p className={cn('font-bold', decision === true ? 'text-acid' : 'text-white')}>
+            <p className={cn('font-bold', !formLocked && decision === true ? 'text-acid' : 'text-white/60')}>
               Add to playlist
             </p>
             <p className="mt-1 text-xs text-white/40">
@@ -227,15 +263,18 @@ export default function CuratorReviewClient({
           </button>
           <button
             type="button"
+            disabled={formLocked}
             onClick={() => setDecision(false)}
             className={cn(
               'rounded-xl border p-4 text-left transition',
-              decision === false
-                ? 'border-white/30 bg-white/[0.04]'
-                : 'border-white/10 hover:border-white/20'
+              formLocked
+                ? 'cursor-not-allowed border-white/5'
+                : decision === false
+                  ? 'border-white/30 bg-white/[0.04]'
+                  : 'border-white/10 hover:border-white/20'
             )}
           >
-            <p className={cn('font-bold', decision === false ? 'text-white' : 'text-white/60')}>
+            <p className={cn('font-bold', !formLocked && decision === false ? 'text-white' : 'text-white/60')}>
               Not this time
             </p>
             <p className="mt-1 text-xs text-white/40">
