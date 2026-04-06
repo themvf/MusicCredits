@@ -62,10 +62,27 @@ export async function POST(
     if (parsed.data.decision === 'approve') {
       // ─── APPROVAL ─────────────────────────────────────────────────────────
       // One transaction: CuratorProfile + CuratorPlaylist rows + role update + application update
+      // Delete any existing curator playlists first so upsert can recreate them cleanly
+      await prisma.curatorPlaylist.deleteMany({
+        where: { curatorProfile: { userId: application.userId } },
+      })
+
       const [curatorProfile] = await prisma.$transaction([
-        prisma.curatorProfile.create({
-          data: {
+        prisma.curatorProfile.upsert({
+          where: { userId: application.userId },
+          create: {
             userId: application.userId,
+            status: 'active',
+            playlists: {
+              create: application.playlists.map((p) => ({
+                spotifyPlaylistId: p.spotifyPlaylistId,
+                playlistName: p.playlistName ?? p.spotifyPlaylistId,
+                followers: p.followerCountAtApply ?? 0,
+                genres: p.genres,
+              })),
+            },
+          },
+          update: {
             status: 'active',
             playlists: {
               create: application.playlists.map((p) => ({
