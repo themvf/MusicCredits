@@ -251,7 +251,7 @@ function ApplicationForm({
           <p className="mt-2 text-sm text-white/50">
             We verify playlist ownership using your Spotify account. Connect before applying.
           </p>
-          <a href="/api/auth/spotify/connect" className="button-primary mt-5 inline-flex">
+          <a href="/api/spotify/login?returnTo=/apply-curator" className="button-primary mt-5 inline-flex">
             Connect Spotify
           </a>
         </div>
