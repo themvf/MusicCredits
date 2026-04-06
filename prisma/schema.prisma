@@ -7,11 +7,50 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  artist
+  curator
+  both
+  admin
+}
+
+enum CuratorProfileStatus {
+  pending
+  active
+  suspended
+  revoked
+}
+
+enum CuratorStatusTrigger {
+  manual
+  automated
+}
+
+enum CuratorApplicationStatus {
+  pending
+  approved
+  rejected
+}
+
+enum SpotifyCheckStatus {
+  passed
+  failed_threshold
+  failed_private
+  failed_api_error
+}
+
+// ─── Core user ───────────────────────────────────────────────────────────────
+
 model User {
   id                    String                 @id @default(cuid())
   clerkId               String                 @unique
+  // Role is never manually set — it is always a consequence of application status.
+  // artist (default) → both (on curator application approval). admin is separate.
+  role                  UserRole               @default(artist)
   credits               Int                    @default(10)
-  // Reputation foundation â€” updated after each completed session
+  // Reputation foundation — updated after each completed session
   trustScore            Float                  @default(1.0)
   tracks                Track[]
   sessions              ListeningSession[]
@@ -20,6 +59,12 @@ model User {
   playlists             Playlist[]
   playlistSnapshots     PlaylistSnapshot[]
   playlistVerifications PlaylistVerification[]
+  artistProfile         ArtistProfile?
+  curatorProfile        CuratorProfile?
+  curatorApplications   CuratorApplication[]
+  reviewedApplications  CuratorApplication[]   @relation("ApplicationReviewer")
+  triggeredStatusEvents CuratorStatusEvent[]   @relation("StatusEventTrigger")
+  platformSettings      PlatformSetting[]      @relation("SettingUpdater")
 }
 
 model Track {
@@ -68,7 +113,7 @@ model ListeningSession {
   @@unique([userId, trackId])
 }
 
-// Behavioral log â€” one record per session, written atomically with rating
+// Behavioral log â€" one record per session, written atomically with rating
 // Powers anti-gaming detection and future reputation scoring
 model ListenEvent {
   id               String           @id @default(cuid())
@@ -183,4 +228,105 @@ model PlaylistVerification {
   @@unique([userId, trackId])
   @@index([playlistId, verified])
   @@index([persistenceDueAt])
+}
+
+// ─── Persona profiles ────────────────────────────────────────────────────────
+
+// Created automatically on registration. Every user is an artist by default.
+model ArtistProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  displayName String?
+  bio         String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Created only when a CuratorApplication is approved (in the same transaction
+// that updates users.role to 'both'). Never created manually.
+model CuratorProfile {
+  id                String               @id @default(cuid())
+  userId            String               @unique
+  spotifyPlaylistId String
+  displayName       String?
+  bio               String?
+  // active → suspended (temporary, reinstatable) → revoked (permanent)
+  // Suspension is enforced here, NOT via users.role. Role stays 'both'.
+  status            CuratorProfileStatus @default(active)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  genres            CuratorGenre[]
+  statusEvents      CuratorStatusEvent[]
+  // The single approved application that created this profile
+  approvedFrom      CuratorApplication?
+}
+
+model CuratorGenre {
+  id               String         @id @default(cuid())
+  curatorProfileId String
+  genre            String
+  curatorProfile   CuratorProfile @relation(fields: [curatorProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([curatorProfileId, genre])
+}
+
+// ─── Curator application flow ────────────────────────────────────────────────
+
+// Progression: artist → submit application → (auto-check follower threshold)
+// → if passed: manual admin review → approved → CuratorProfile created + role: both
+// → if failed: auto-rejected with specific reason, no admin involvement
+model CuratorApplication {
+  id                   String                   @id @default(cuid())
+  userId               String
+  spotifyPlaylistId    String
+  // Populated by Spotify API call at submission time (server-side, client credentials)
+  followerCountAtApply Int?
+  thresholdMet         Boolean?
+  spotifyCheckStatus   SpotifyCheckStatus?
+  status               CuratorApplicationStatus @default(pending)
+  rejectionReason      String?
+  // Set when application is approved; links to the CuratorProfile created in the same tx
+  curatorProfileId     String?                  @unique
+  reviewedBy           String?
+  reviewedAt           DateTime?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  user                 User                     @relation(fields: [userId], references: [id])
+  curatorProfile       CuratorProfile?          @relation(fields: [curatorProfileId], references: [id], onDelete: SetNull)
+  reviewer             User?                    @relation("ApplicationReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
+}
+
+// Full audit trail of every CuratorProfile status change.
+// triggered_by is null for automated suspensions (no human actor).
+model CuratorStatusEvent {
+  id               String               @id @default(cuid())
+  curatorProfileId String
+  fromStatus       CuratorProfileStatus
+  toStatus         CuratorProfileStatus
+  triggerType      CuratorStatusTrigger
+  triggeredBy      String?
+  reason           String
+  createdAt        DateTime             @default(now())
+  curatorProfile   CuratorProfile       @relation(fields: [curatorProfileId], references: [id], onDelete: Cascade)
+  triggeredByUser  User?                @relation("StatusEventTrigger", fields: [triggeredBy], references: [id], onDelete: SetNull)
+
+  @@index([curatorProfileId, createdAt])
+}
+
+// ─── Platform configuration ───────────────────────────────────────────────────
+
+// Key-value store for runtime-adjustable platform constants.
+// Seed on first deploy: curator_min_followers = '500'
+// Cache reads for 60 minutes — changes propagate within the hour, no redeploy needed.
+// updatedBy is nullable to allow system-seeded values with no human actor.
+model PlatformSetting {
+  key       String   @id
+  value     String
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+  updater   User?    @relation("SettingUpdater", fields: [updatedBy], references: [id], onDelete: SetNull)
 }
