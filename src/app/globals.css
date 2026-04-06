@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Accent color token — switches per persona */
+:root {
+  --color-accent: 200 240 0; /* acid green #C8F000 */
+}
+[data-persona="curator"] {
+  --color-accent: 255 45 107; /* neon pink #FF2D6B */
+}
+
 html,
 body {
   min-height: 100%;
@@ -22,7 +30,7 @@ body {
 }
 
 ::selection {
-  background: rgba(200, 240, 0, 0.3);
+  background: rgb(var(--color-accent) / 0.3);
   color: #0D0D0D;
 }
 

@@ -27,7 +27,8 @@ const config: Config = {
           700: '#15803d',
         },
         // Public homepage accent palette
-        acid: '#C8F000',
+        // CSS variable — switches to pink in curator mode via [data-persona="curator"]
+        acid: 'rgb(var(--color-accent) / <alpha-value>)',
         hp: '#FF2D6B',
         cobalt: '#3B5BFF',
       },

@@ -31,11 +31,15 @@ export function PersonaProvider({
     if (stored === 'curator' && role === 'both' && curatorActive) {
       setPersonaState('curator')
     } else {
-      // Stored value is stale (role reverted or curator suspended) — clear it
       if (stored === 'curator') localStorage.removeItem(STORAGE_KEY)
       setPersonaState('artist')
     }
   }, [role, curatorActive])
+
+  // Stamp data-persona on <html> so the CSS variable override applies globally
+  useEffect(() => {
+    document.documentElement.dataset.persona = persona
+  }, [persona])
 
   function setPersona(p: Persona) {
     setPersonaState(p)
