@@ -62,10 +62,16 @@ export async function POST(
     if (parsed.data.decision === 'approve') {
       // ─── APPROVAL ─────────────────────────────────────────────────────────
       // One transaction: CuratorProfile + CuratorPlaylist rows + role update + application update
-      // Delete any existing curator playlists first so upsert can recreate them cleanly
-      await prisma.curatorPlaylist.deleteMany({
-        where: { curatorProfile: { userId: application.userId } },
+      // If a revoked profile exists, delete its playlists so the upsert can recreate them
+      const existingProfile = await prisma.curatorProfile.findUnique({
+        where: { userId: application.userId },
+        select: { id: true },
       })
+      if (existingProfile) {
+        await prisma.curatorPlaylist.deleteMany({
+          where: { curatorProfileId: existingProfile.id },
+        })
+      }
 
       const [curatorProfile] = await prisma.$transaction([
         prisma.curatorProfile.upsert({
