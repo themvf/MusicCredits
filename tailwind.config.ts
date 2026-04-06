@@ -10,6 +10,12 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      opacity: {
+        6: '0.06',
+        8: '0.08',
+        12: '0.12',
+        15: '0.15',
+      },
       colors: {
         brand: {
           50: '#f0fdf4',

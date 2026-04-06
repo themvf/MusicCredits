@@ -47,11 +47,13 @@ button {
 @layer components {
   /* Flat dark card — no glassmorphism */
   .surface-card {
-    @apply rounded-2xl border border-white/8 bg-[#111111];
+    @apply rounded-2xl bg-[#111111];
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .surface-card-soft {
-    @apply rounded-xl border border-white/6 bg-[#0D0D0D];
+    @apply rounded-xl bg-[#0D0D0D];
+    border: 1px solid rgba(255, 255, 255, 0.06);
   }
 
   .hero-orb {
@@ -60,19 +62,32 @@ button {
 
   /* Acid green primary button */
   .button-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-acid px-5 py-3 text-sm font-bold text-[#0D0D0D] transition duration-200 hover:-translate-y-0.5 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-acid/40;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-acid px-5 py-3 text-sm font-bold text-[#0D0D0D] transition duration-200 hover:-translate-y-0.5 hover:opacity-90 focus:outline-none;
+  }
+  .button-primary:focus {
+    box-shadow: 0 0 0 2px rgba(200, 240, 0, 0.4);
   }
 
   .button-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-transparent px-5 py-3 text-sm font-semibold text-white transition duration-200 hover:border-acid/50 hover:text-acid focus:outline-none focus:ring-2 focus:ring-acid/20;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-transparent px-5 py-3 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:text-acid focus:outline-none;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+  .button-secondary:hover {
+    border-color: rgba(200, 240, 0, 0.5);
+  }
+  .button-secondary:focus {
+    box-shadow: 0 0 0 2px rgba(200, 240, 0, 0.2);
   }
 
   .button-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-transparent px-4 py-2.5 text-sm font-medium text-white/50 transition duration-200 hover:text-white;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-transparent px-4 py-2.5 text-sm font-medium transition duration-200 hover:text-white;
+    color: rgba(255, 255, 255, 0.5);
   }
 
   .eyebrow-badge {
-    @apply inline-flex items-center gap-2 rounded-full border border-acid/25 bg-acid/8 px-4 py-2 text-[0.72rem] font-medium uppercase tracking-[0.28em] text-acid;
+    @apply inline-flex items-center gap-2 rounded-full px-4 py-2 text-[0.72rem] font-medium uppercase tracking-[0.28em] text-acid;
+    border: 1px solid rgba(200, 240, 0, 0.25);
+    background-color: rgba(200, 240, 0, 0.08);
   }
 
   .metric-value {
