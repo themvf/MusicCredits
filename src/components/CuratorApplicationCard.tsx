@@ -12,7 +12,6 @@ export default async function CuratorApplicationCard({ userId }: Props) {
     select: {
       status: true,
       rejectionReason: true,
-      reviewedBy: true,
       createdAt: true,
     },
   })
@@ -43,11 +42,6 @@ export default async function CuratorApplicationCard({ userId }: Props) {
     }
 
     if (application.status === 'rejected') {
-      const isAutoRejection = !application.reviewedBy
-      const cooldownActive =
-        !isAutoRejection &&
-        new Date(application.createdAt).getTime() + 30 * 24 * 60 * 60 * 1000 > Date.now()
-
       return (
         <div className="surface-card p-5">
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-rose-400">
@@ -57,11 +51,9 @@ export default async function CuratorApplicationCard({ userId }: Props) {
           <p className="mt-1 text-xs text-white/40">
             {application.rejectionReason}
           </p>
-          {!cooldownActive && (
-            <Link href="/apply-curator" className="mt-3 inline-block text-xs font-medium text-acid hover:text-acid/80 transition">
-              Apply again &rarr;
-            </Link>
-          )}
+          <Link href="/apply-curator" className="mt-3 inline-block text-xs font-medium text-acid hover:text-acid/80 transition">
+            Apply again &rarr;
+          </Link>
         </div>
       )
     }
