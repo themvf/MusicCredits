@@ -98,11 +98,11 @@ const featureCards = [
 
 const curators = [
   {
-    initials: 'MR',
-    name: 'Marcus Reid',
-    meta: 'Neo-soul · R&B · Jazz · Since 2011',
-    quote: '"My playlist is my reputation. I add what moves me."',
-    tags: ['Neo-soul', 'R&B', 'Jazz'],
+    initials: 'JK',
+    name: 'Jordan Kim',
+    meta: 'EDM · House · Techno',
+    quote: '"The drop either hits or it doesn\'t. My playlist doesn\'t lie."',
+    tags: ['EDM', 'House', 'Techno'],
     bg: 'bg-cobalt',
     tagBg: 'bg-white/10 text-white',
     quoteClass: 'text-white',
@@ -110,11 +110,11 @@ const curators = [
     nameClass: 'text-white',
   },
   {
-    initials: 'SL',
-    name: 'Sofia Lange',
-    meta: 'Indie · Alt · Bedroom pop · Since 2021',
-    quote: '"I\'m not here to fill a playlist. I\'m here to be right."',
-    tags: ['Indie', 'Alternative', 'Bedroom pop'],
+    initials: 'DW',
+    name: 'Devon Wallace',
+    meta: 'Rap · Hip-Hop · Trap',
+    quote: '"I know a hit before the hook. My ears don\'t miss."',
+    tags: ['Rap', 'Hip-Hop', 'Trap'],
     bg: 'bg-[#111111]',
     tagBg: 'text-white/70 border border-white/10',
     quoteClass: 'text-white',
@@ -122,6 +122,47 @@ const curators = [
     nameClass: 'text-white',
   },
 ] as const
+
+// ─── Offset shadow CTA button ─────────────────────────────────────────────────
+
+function PitchButton({ mainColor }: { mainColor: string }) {
+  const label = 'Pitch your track \u2192'
+  const padding = '16px 36px'
+  const fontSize = '16px'
+  const fontWeight = '500'
+  const borderRadius = '50px'
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      {/* Layer 3 — black shadow, furthest back */}
+      <div style={{
+        position: 'absolute', top: '8px', left: '8px',
+        background: NEAR_BLACK, borderRadius,
+        padding, fontSize, fontWeight,
+        whiteSpace: 'nowrap', color: 'transparent',
+        userSelect: 'none', pointerEvents: 'none',
+      }}>{label}</div>
+      {/* Layer 2 — pink shadow */}
+      <div style={{
+        position: 'absolute', top: '4px', left: '4px',
+        background: '#FF2D6B', borderRadius,
+        padding, fontSize, fontWeight,
+        whiteSpace: 'nowrap', color: 'transparent',
+        border: `2px solid ${NEAR_BLACK}`,
+        userSelect: 'none', pointerEvents: 'none',
+      }}>{label}</div>
+      {/* Layer 1 — main button, front */}
+      <Link href="/sign-up" style={{
+        position: 'relative', display: 'block',
+        background: mainColor, color: NEAR_BLACK,
+        border: `2.5px solid ${NEAR_BLACK}`,
+        padding, borderRadius,
+        fontSize, fontWeight,
+        cursor: 'pointer', whiteSpace: 'nowrap',
+        textDecoration: 'none',
+      }}>{label}</Link>
+    </div>
+  )
+}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -147,21 +188,44 @@ export default async function HomePage() {
       */}
       <section className="relative bg-acid px-6 pb-0 pt-8 md:px-10 lg:px-16">
 
-        {/* Starburst stamp — positioned absolutely, hidden on small screens */}
+        {/* Graphic cluster — positioned absolutely, hidden on small screens */}
         <svg
-          width="130"
-          height="130"
-          viewBox="0 0 130 130"
+          viewBox="0 0 320 280"
+          xmlns="http://www.w3.org/2000/svg"
           className="absolute hidden sm:block"
-          style={{ top: 40, right: 40, zIndex: 2 }}
+          style={{ top: '20px', right: '0', width: '320px', height: '280px', zIndex: 2 }}
           aria-hidden
         >
-          <polygon
-            points="65,2 72,48 110,20 82,58 128,58 90,78 118,108 72,88 78,128 55,94 32,128 38,88 2,108 30,78 2,58 48,58 20,20 58,48"
-            fill="#FF2D6B"
-          />
-          <text x="65" y="60" textAnchor="middle" fontSize="9" fontWeight="500" fill={ACID} fontFamily="sans-serif" letterSpacing="1">TASTE NOT</text>
-          <text x="65" y="74" textAnchor="middle" fontSize="9" fontWeight="500" fill={ACID} fontFamily="sans-serif" letterSpacing="1">TRANSACTIONS</text>
+          <rect x="180" y="10" width="90" height="90" fill="#FF2D6B" stroke={NEAR_BLACK} strokeWidth="2.5"/>
+          <rect x="188" y="18" width="90" height="90" fill="none" stroke={NEAR_BLACK} strokeWidth="2.5"/>
+          <rect x="196" y="26" width="90" height="90" fill="none" stroke={NEAR_BLACK} strokeWidth="1.5" strokeDasharray="4 3"/>
+
+          <circle cx="80" cy="80" r="56" fill="none" stroke={NEAR_BLACK} strokeWidth="2.5"/>
+          <circle cx="80" cy="80" r="40" fill="none" stroke={NEAR_BLACK} strokeWidth="1.5"/>
+          <circle cx="80" cy="80" r="22" fill={NEAR_BLACK}/>
+          <circle cx="80" cy="80" r="8" fill={ACID}/>
+
+          <text x="225" y="62" textAnchor="middle" fontSize="11" fontWeight="500" fill={ACID} fontFamily="sans-serif" letterSpacing="0.5">TASTE NOT</text>
+          <text x="225" y="76" textAnchor="middle" fontSize="11" fontWeight="500" fill={ACID} fontFamily="sans-serif" letterSpacing="0.5">TRANSACTIONS</text>
+
+          <line x1="155" y1="55" x2="175" y2="55" stroke={NEAR_BLACK} strokeWidth="2"/>
+          <line x1="155" y1="62" x2="175" y2="62" stroke={NEAR_BLACK} strokeWidth="2"/>
+          <line x1="155" y1="69" x2="175" y2="69" stroke={NEAR_BLACK} strokeWidth="2"/>
+
+          <polygon points="60,170 90,140 120,170 105,170 105,200 75,200 75,170" fill="#FF2D6B" stroke={NEAR_BLACK} strokeWidth="2"/>
+
+          <rect x="160" y="150" width="60" height="60" fill={NEAR_BLACK} stroke={NEAR_BLACK} strokeWidth="2"/>
+          <rect x="172" y="162" width="36" height="36" fill={ACID}/>
+          <rect x="182" y="172" width="16" height="16" fill="#FF2D6B"/>
+
+          <line x1="250" y1="140" x2="310" y2="140" stroke={NEAR_BLACK} strokeWidth="2.5"/>
+          <line x1="250" y1="155" x2="295" y2="155" stroke={NEAR_BLACK} strokeWidth="2.5"/>
+          <line x1="250" y1="170" x2="310" y2="170" stroke={NEAR_BLACK} strokeWidth="1.5"/>
+          <line x1="250" y1="182" x2="280" y2="182" stroke={NEAR_BLACK} strokeWidth="1.5"/>
+
+          <polygon points="20,230 35,200 50,230 42,230 42,260 28,260 28,230" fill="none" stroke={NEAR_BLACK} strokeWidth="2"/>
+          <polygon points="240,220 260,195 280,220" fill="#FF2D6B" stroke={NEAR_BLACK} strokeWidth="2"/>
+          <polygon points="250,245 270,220 290,245" fill="none" stroke={NEAR_BLACK} strokeWidth="2"/>
         </svg>
 
         <div className="mx-auto max-w-7xl">
@@ -196,12 +260,7 @@ export default async function HomePage() {
               reputation is on the line.
             </p>
             <div className="flex flex-col items-start gap-2 pb-8 sm:items-end">
-              <Link
-                href="/sign-up"
-                className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-transparent px-6 py-3 text-sm font-bold text-black transition hover:bg-black hover:text-acid"
-              >
-                Pitch your track &rarr;
-              </Link>
+              <PitchButton mainColor={ACID} />
               <p className="text-xs text-black/50">
                 One track &middot; No commitment &middot;{' '}
                 <span className="font-semibold text-hp">From 10 credits</span>
@@ -387,12 +446,7 @@ export default async function HomePage() {
             <p className="text-sm font-semibold text-hp">
               From 10 credits &middot; No commitment
             </p>
-            <Link
-              href="/sign-up"
-              className="inline-flex items-center gap-2 rounded-full border-2 border-acid bg-transparent px-7 py-3.5 text-sm font-bold text-acid transition hover:bg-acid hover:text-black"
-            >
-              Pitch your track &rarr;
-            </Link>
+            <PitchButton mainColor="#FF2D6B" />
           </div>
         </div>
       </section>
