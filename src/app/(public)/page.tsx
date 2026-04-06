@@ -206,44 +206,26 @@ export default async function HomePage() {
       */}
       <section className="relative bg-acid px-6 pb-0 pt-8 md:px-10 lg:px-16">
 
-        {/* Graphic cluster — positioned absolutely, hidden on small screens */}
+        {/* Blob cluster — five overlapping ellipses, sits behind headline text */}
         <svg
-          viewBox="0 0 320 280"
+          style={{
+            position: 'absolute',
+            top: '16px',
+            right: '0px',
+            width: '280px',
+            height: '280px',
+            zIndex: 0,
+            pointerEvents: 'none',
+          }}
+          viewBox="0 0 280 280"
           xmlns="http://www.w3.org/2000/svg"
-          className="absolute hidden sm:block"
-          style={{ top: '20px', right: '0', width: '320px', height: '280px', zIndex: 2 }}
           aria-hidden
         >
-          <rect x="180" y="10" width="90" height="90" fill="#FF2D6B" stroke={NEAR_BLACK} strokeWidth="2.5"/>
-          <rect x="188" y="18" width="90" height="90" fill="none" stroke={NEAR_BLACK} strokeWidth="2.5"/>
-          <rect x="196" y="26" width="90" height="90" fill="none" stroke={NEAR_BLACK} strokeWidth="1.5" strokeDasharray="4 3"/>
-
-          <circle cx="80" cy="80" r="56" fill="none" stroke={NEAR_BLACK} strokeWidth="2.5"/>
-          <circle cx="80" cy="80" r="40" fill="none" stroke={NEAR_BLACK} strokeWidth="1.5"/>
-          <circle cx="80" cy="80" r="22" fill={NEAR_BLACK}/>
-          <circle cx="80" cy="80" r="8" fill={ACID}/>
-
-          <text x="225" y="62" textAnchor="middle" fontSize="11" fontWeight="500" fill={ACID} fontFamily="sans-serif" letterSpacing="0.5">TASTE NOT</text>
-          <text x="225" y="76" textAnchor="middle" fontSize="11" fontWeight="500" fill={ACID} fontFamily="sans-serif" letterSpacing="0.5">TRANSACTIONS</text>
-
-          <line x1="155" y1="55" x2="175" y2="55" stroke={NEAR_BLACK} strokeWidth="2"/>
-          <line x1="155" y1="62" x2="175" y2="62" stroke={NEAR_BLACK} strokeWidth="2"/>
-          <line x1="155" y1="69" x2="175" y2="69" stroke={NEAR_BLACK} strokeWidth="2"/>
-
-          <polygon points="60,170 90,140 120,170 105,170 105,200 75,200 75,170" fill="#FF2D6B" stroke={NEAR_BLACK} strokeWidth="2"/>
-
-          <rect x="160" y="150" width="60" height="60" fill={NEAR_BLACK} stroke={NEAR_BLACK} strokeWidth="2"/>
-          <rect x="172" y="162" width="36" height="36" fill={ACID}/>
-          <rect x="182" y="172" width="16" height="16" fill="#FF2D6B"/>
-
-          <line x1="250" y1="140" x2="310" y2="140" stroke={NEAR_BLACK} strokeWidth="2.5"/>
-          <line x1="250" y1="155" x2="295" y2="155" stroke={NEAR_BLACK} strokeWidth="2.5"/>
-          <line x1="250" y1="170" x2="310" y2="170" stroke={NEAR_BLACK} strokeWidth="1.5"/>
-          <line x1="250" y1="182" x2="280" y2="182" stroke={NEAR_BLACK} strokeWidth="1.5"/>
-
-          <polygon points="20,230 35,200 50,230 42,230 42,260 28,260 28,230" fill="none" stroke={NEAR_BLACK} strokeWidth="2"/>
-          <polygon points="240,220 260,195 280,220" fill="#FF2D6B" stroke={NEAR_BLACK} strokeWidth="2"/>
-          <polygon points="250,245 270,220 290,245" fill="none" stroke={NEAR_BLACK} strokeWidth="2"/>
+          <ellipse cx="160" cy="130" rx="105" ry="95" fill="#FF2D6B" transform="rotate(-15 160 130)" />
+          <ellipse cx="110" cy="100" rx="72" ry="60" fill={NEAR_BLACK} transform="rotate(20 110 100)" />
+          <ellipse cx="150" cy="155" rx="60" ry="50" fill={ACID} transform="rotate(-30 150 155)" />
+          <ellipse cx="200" cy="195" rx="40" ry="32" fill="#FF2D6B" transform="rotate(10 200 195)" />
+          <circle cx="148" cy="148" r="14" fill={NEAR_BLACK} />
         </svg>
 
         <div className="mx-auto max-w-7xl">
@@ -254,8 +236,8 @@ export default async function HomePage() {
 
           {/* Headline — no margin-bottom; gap comes from sub-row padding-top only */}
           <h1
-            className="min-w-0 font-black leading-[0.92] tracking-tighter text-black"
-            style={{ fontSize: 'clamp(3.2rem, 9vw, 8.5rem)' }}
+            className="relative min-w-0 font-black leading-[0.92] tracking-tighter text-black"
+            style={{ fontSize: 'clamp(3.2rem, 9vw, 8.5rem)', zIndex: 1 }}
           >
             <span className="flex items-center gap-3">
               Influence
