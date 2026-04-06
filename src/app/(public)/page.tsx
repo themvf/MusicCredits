@@ -176,9 +176,27 @@ export default async function HomePage() {
 
       {/* ── Header ──────────────────────────────────────────────────── */}
       <header className="bg-[#0A0A0A] px-6 py-4 md:px-10">
-        <Link href="/" className="inline-flex items-center gap-0.5 text-xl font-bold tracking-tight text-white">
-          Sound<span className="text-acid">Swap</span>
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link href="/" className="inline-flex items-center gap-0.5 text-xl font-bold tracking-tight text-white">
+            Sound<span className="text-acid">Swap</span>
+          </Link>
+          <div className="flex items-center gap-6">
+            <Link
+              href="#free-discovery"
+              style={{
+                fontSize: '14px',
+                color: 'rgba(200,240,0,0.6)',
+                textDecoration: 'none',
+                fontWeight: 400,
+                borderBottom: '1px solid rgba(200,240,0,0.25)',
+                paddingBottom: '1px',
+              }}
+            >
+              Start for free
+            </Link>
+            <PitchButton mainColor={ACID} />
+          </div>
+        </div>
       </header>
 
       {/* ── Hero ────────────────────────────────────────────────────── */}
@@ -265,6 +283,30 @@ export default async function HomePage() {
                 One track &middot; No commitment &middot;{' '}
                 <span className="font-semibold text-hp">From 10 credits</span>
               </p>
+              <div style={{
+                marginTop: '4px',
+                paddingTop: '12px',
+                borderTop: '1px solid rgba(13,13,13,0.12)',
+                textAlign: 'right',
+                width: '100%',
+              }}>
+                <span style={{ fontSize: '12px', color: 'rgba(13,13,13,0.45)' }}>
+                  Not ready to spend credits?{' '}
+                </span>
+                <Link
+                  href="#free-discovery"
+                  style={{
+                    fontSize: '12px',
+                    color: NEAR_BLACK,
+                    fontWeight: 500,
+                    textDecoration: 'none',
+                    borderBottom: `1.5px solid ${NEAR_BLACK}`,
+                    paddingBottom: '1px',
+                  }}
+                >
+                  Start with Free Discovery →
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -418,7 +460,7 @@ export default async function HomePage() {
       </section>
 
       {/* ── Manifesto CTA ─────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-[#0A0A0A] px-6 py-10 md:px-10">
+      <section id="free-discovery" className="relative overflow-hidden bg-[#0A0A0A] px-6 py-10 md:px-10">
         {/* Decorative donut */}
         <div
           className="absolute -right-16 top-1/2 -translate-y-1/2 rounded-full opacity-10"
